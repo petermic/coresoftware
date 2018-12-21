@@ -56,7 +56,8 @@ SvtxEvaluator::SvtxEvaluator(const string &name, const string &filename, const s
   _do_gtrack_eval(true),
   _do_track_eval(true),
   _do_gseed_eval(false),
-  _do_track_match(true),
+  _do_track_match_reco(true),
+  _do_track_match_gen(true),
   _do_eval_light(true),
   _scan_for_embedded(false),
   _nlayers_maps(nlayers_maps),
@@ -647,6 +648,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode *topNode) {
       cout << "start vertex time:                "<<_timer->get_accumulated_time()/1000. << " sec" <<endl;
       _timer->restart();
     }
+    bool scan_for_embedded = _scan_for_embedded;
+    if( !_do_track_match_reco){
+      scan_for_embedded = false;
+    }
 
     SvtxVertexMap* vertexmap = findNode::getClass<SvtxVertexMap>(topNode,"SvtxVertexMap");
     PHG4TruthInfoContainer* truthinfo = findNode::getClass<PHG4TruthInfoContainer>(topNode,"G4TruthInfo");
@@ -666,7 +671,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode *topNode) {
 	    ++embedvtxid_particle_count[gembed];
 	    PHG4Particle* g4particle = iter->second;
 	    
-	    if (_scan_for_embedded && gembed <=0) continue;
+	    if (scan_for_embedded && gembed <=0) continue;
 	    
 	    std::set<SvtxCluster*> g4clusters = clustereval->all_clusters_from(g4particle);
 	    unsigned int nglmaps = 0;
@@ -727,7 +732,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode *topNode) {
 	{
 	  const int point_id = iter->first;
 	  int gembed = truthinfo->isEmbededVtx(point_id);
-	  if (_scan_for_embedded && gembed <= 0) continue;
+	  if (scan_for_embedded && gembed <= 0) continue;
 	  
 	  auto search = embedvtxid_found.find(gembed);
 	  if (search != embedvtxid_found.end())
@@ -814,7 +819,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode *topNode) {
 	_ntp_vertex->Fill(vertex_data);      
       }
 
-      if (!_scan_for_embedded) {
+      if (!scan_for_embedded) {
       for (std::map<int,bool>::iterator iter = embedvtxid_found.begin();
         iter != embedvtxid_found.end();
         ++iter)
@@ -2012,7 +2017,7 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode *topNode) {
 	float ntrutpc       = NAN;
 	float layersfromtruth = NAN;
 
-	if(_do_track_match){
+	if(_do_track_match_gen){
 	  SvtxTrack* track = trackeval->best_track_from(g4particle);
 	  
 	  if (track) {
@@ -2324,9 +2329,10 @@ void SvtxEvaluator::fillOutputNtuples(PHCompositeNode *topNode) {
 	float ntrutpc    = NAN;
 	float layersfromtruth = NAN;
       
-	if(_do_track_match){
+	if(_do_track_match_reco){
 	  PHG4Particle* g4particle = trackeval->max_truth_particle_by_nclusters(track);	
 	  
+
 	  if (g4particle) {
 	    
 	    if (_scan_for_embedded) {
