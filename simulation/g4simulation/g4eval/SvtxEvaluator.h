@@ -55,7 +55,8 @@ public:
   void do_track_eval(bool b) {_do_track_eval = b;}
   void do_gseed_eval(bool b) {_do_gseed_eval = b;}
 
-  void do_track_match(bool b) {_do_track_match = b;}
+  void do_track_match_reco(bool b) {_do_track_match_reco = b;}
+  void do_track_match_gen(bool b) {_do_track_match_gen = b;}
   void do_eval_light(bool b) {_do_eval_light = b;}
   void scan_for_embedded(bool b) {_scan_for_embedded = b;}
   
@@ -81,7 +82,8 @@ public:
   bool _do_track_eval;
   bool _do_gseed_eval;
 
-  bool _do_track_match;
+  bool _do_track_match_reco;
+  bool _do_track_match_gen;
   bool _do_eval_light;
   bool _scan_for_embedded;
 
