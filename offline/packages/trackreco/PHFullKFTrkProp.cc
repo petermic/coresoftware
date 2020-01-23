@@ -15,6 +15,17 @@
 
 #include <iostream>                            // for operator<<, basic_ostream
 
+#define _DEBUG_
+
+#ifdef _DEBUG_
+#define LogDebug(exp) std::cout << "DEBUG: " << __FILE__ << ": " << __LINE__ << ": " << exp
+#else
+#define LogDebug(exp) (void)0
+#endif
+
+#define LogError(exp) std::cout << "ERROR: " << __FILE__ << ": " << __LINE__ << ": " << exp
+#define LogWarning(exp) std::cout << "WARNING: " << __FILE__ << ": " << __LINE__ << ": " << exp
+
 using namespace std;
 
 PHFullKFTrkProp::PHFullKFTrkProp(const std::string& name)
@@ -24,6 +35,10 @@ PHFullKFTrkProp::PHFullKFTrkProp(const std::string& name)
   , _track_map(nullptr)
   , _assoc_container(nullptr)
   , _track_map_name("SvtxTrackMap")
+  , _aTrack()
+  , _aProp()
+  , _aField()
+  , _max_sin_phi(0.999)
 {
 }
 
@@ -35,6 +50,37 @@ int PHFullKFTrkProp::InitRun(PHCompositeNode* topNode)
 int PHFullKFTrkProp::process_event(PHCompositeNode* topNode)
 {
   return Process();
+}
+
+int PHFullKFTrkProp::Process()
+{
+  // get tracklets
+  for(phtrk_iter = _track_map->begin();
+    phtrk_iter != _track_map->end();
+    ++phtrk_iter)
+  {
+    SvtxTrack* tracklet = phtrk_iter->second;
+    // set initial alpha to be aligned with track head
+    _aTrack.X() = sqrt(pow(tracklet->get_x(),2)+pow(tracklet->get_y(),2));
+    _aTrack.Y() = 0.;
+    _aTrack.Z() = tracklet->get_z();
+    float alpha = atan(tracklet->get_y()/tracklet->get_x());
+    _aTrack.SinPhi() = 0.;
+    _aTrack.DzDs() = 0.;
+    _aTrack.QPt() = tracklet->get_charge()/tracklet->get_pt();
+    _aTrack.ResetCovariance();
+    _aProp.SetMaterial(0.,1e100); // material corrections not needed, but these are fairly straightforward parameters for the vacuum
+    _aProp.SetMaxSinPhi(_max_sin_phi);
+    _aProp.SetToyMCEventsFlag(false);
+    _aProp.SetSeedingErrors(true);
+    _aProp.SetFitInProjections(true);
+    _aField.SetFieldNominal(1.4);
+    _aField.SetFieldTpc(0.,0.,1.4);
+    _aProp.SetPolynomialField(_aField);
+    _aProp.SetTrack(&_aTrack,alpha);
+    
+  }
+  return Fun4AllReturnCodes::EVENT_OK;
 }
 
 int PHFullKFTrkProp::End(PHCompositeNode* topNode)

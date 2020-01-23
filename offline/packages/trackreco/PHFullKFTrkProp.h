@@ -13,6 +13,10 @@
 // STL includes
 #include <string>
 
+#include "GPUTPCGMPropagator.h"
+#include "GPUTPCGMTrackParam.h"
+#include "GPUTPCGMPolynomialField.h"
+
 // forward declarations
 class PHCompositeNode;
 
@@ -54,12 +58,15 @@ class PHFullKFTrkProp : public SubsysReco
   SvtxVertexMap *_vertex_map;
   SvtxTrackMap *_track_map;
   AssocInfoContainer *_assoc_container;
-
   std::string _track_map_name;
 
  private:
   /// fetch node pointers
   int GetNodes(PHCompositeNode *topNode);
+  GPUTPCGMTrackParam _aTrack;
+  GPUTPCGMPropagator _aProp;
+  GPUTPCGMPolynomialField _aField;
+  float _max_sin_phi;
 };
 
 #endif
