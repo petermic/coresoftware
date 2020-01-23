@@ -14,6 +14,7 @@
 #include "GPUTPCTrackLinearisation.h"
 #include "GPUTPCTrackParam.h"
 #include <cmath>
+#include <iostream>
 #include <algorithm>
 
 //
@@ -637,7 +638,12 @@ bool GPUTPCTrackParam::Filter(float y, float z, float err2Y, float err2Z, float 
   k31 = c31 * mS2;
 
   float sinPhi = GetPar(2) + k20 * z0;
-
+  std::cout << "Par(2) = " << GetPar(2) << std::endl;
+  std::cout << "k20 = " << k20 << std::endl;
+  std::cout << "y = " << y << std::endl;
+  std::cout << "Par(0) = " << GetPar(0) << std::endl;
+  std::cout << "z0 = " << z0 << std::endl;
+  std::cout << "sinPhi = " << sinPhi << std::endl;
   if (maxSinPhi > 0 && std::abs(sinPhi) >= maxSinPhi) {
     return 0;
   }

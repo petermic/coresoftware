@@ -1,0 +1,30 @@
+// Copyright CERN and copyright holders of ALICE O2. This software is
+// distributed under the terms of the GNU General Public License v3 (GPL
+// Version 3), copied verbatim in the file "COPYING".
+//
+// See http://alice-o2.web.cern.ch/license for full licensing information.
+//
+// In applying this license CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
+
+/// \file GPUTPCDef.h
+/// \author David Rohr, Sergey Gorbunov
+
+// clang-format off
+#ifndef GPUTPCDEF_H
+#define GPUTPCDEF_H
+
+
+#define CALINK_INVAL ((calink) -1)
+typedef unsigned int calink;
+typedef unsigned int cahit;
+
+struct cahit2{cahit x, y;};
+}
+
+#define CA_GET_ROW_HIT(iRow) tracklet.RowHit(iRow)
+#define CA_SET_ROW_HIT(iRow, val) tracklet.SetRowHit(iRow, val)
+
+#endif //GPUDTPCEF_H
+// clang format on
