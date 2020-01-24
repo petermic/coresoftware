@@ -33,6 +33,7 @@ pkginclude_HEADERS = \
   HelixHoughSpace.h \
   HelixHoughSpace_v1.h \
   HelixKalmanFilter.h \
+  PHFullKFTrkProp.h \
   PHGenFitTrackProjection.h \
   PHGenFitTrkFitter.h \
   PHGenFitTrkProp.h \
@@ -48,9 +49,22 @@ pkginclude_HEADERS = \
   PHTruthVertexing.h \
   VertexFitter.h \
   PHRaveVertexing.h \
+  GPUDataTypes.h \
+  GPUdEdxInfo.h \
+  GPUParam.h \
+  GPUParam.inc \
+  GPUSettings.h \
+  GPUTPCDef.h \
   GPUTPCBaseTrackParam.h \
   GPUTPCTrackLinearisation.h \
-  GPUTPCTrackParam.h
+  GPUTPCTrackParam.h \
+  GPUTPCGMMergedTrackHit.h \
+  GPUTPCGMOfflineStatisticalErrors.h \
+  GPUTPCGMPhysicalTrackModel.h \
+  GPUTPCGMPolynomialField.h \
+  GPUTPCGMPolynomialFieldManager.h \
+  GPUTPCGMPropagator.h \
+  GPUTPCGMTrackParam.h 
 
 ROOTDICTS = \
   AssocInfoContainer_Dict.cc \
@@ -73,6 +87,7 @@ if MAKEROOT6
   HelixHoughFuncs_v1_Dict_rdict.pcm 
 else
   ROOT5_DICTS = \
+    PHFullKFTrkProp_Dict.cc \
     PHInitVertexing_Dict.cc \
     PHInitZVertexing_Dict.cc \
     PHTrackSeeding_Dict.cc \
@@ -88,7 +103,7 @@ else
     PHGenFitTrkProp_Dict.cc \
     PHGenFitTrkFitter_Dict.cc \
     PHGenFitTrackProjection_Dict.cc \
-    PHRaveVertexing_Dict.cc
+    PHRaveVertexing_Dict.cc 
 endif
 
 libtrack_reco_io_la_SOURCES = \
@@ -99,10 +114,10 @@ libtrack_reco_io_la_SOURCES = \
   HelixHoughFuncs_v1.cc \
   HelixHoughSpace_v1.cc \
   HelixKalmanFilter.cc \
-  VertexFitter.cc \
-  GPUTPCTrackParam.cxx
+  VertexFitter.cc 
 libtrack_reco_la_SOURCES = \
   $(ROOT5_DICTS) \
+  PHFullKFTrkProp.cc \
   PHInitVertexing.cc \
   PHInitZVertexing.cc \
   PHTrackSeeding.cc \
@@ -118,7 +133,17 @@ libtrack_reco_la_SOURCES = \
   PHGenFitTrkProp.cc \
   PHGenFitTrkFitter.cc \
   PHGenFitTrackProjection.cc \
-  PHRaveVertexing.cc 
+  PHRaveVertexing.cc \
+  GPUTPCGMPropagator.cxx \
+  GPUDataTypes.cxx \
+  GPUParam.cxx \
+  GPUSettings.cxx \
+  GPUTPCTrackParam.cxx \
+  GPUTPCTrackLinearisation.cxx \
+  GPUTPCGMPhysicalTrackModel.cxx \
+  GPUTPCGMPolynomialField.cxx \
+  GPUTPCGMPolynomialFieldManager.cxx \
+  GPUTPCGMTrackParam.cxx 
 
 libtrack_reco_io_la_LIBADD = \
   -lphool \

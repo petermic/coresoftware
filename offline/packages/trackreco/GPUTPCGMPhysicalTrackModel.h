@@ -29,7 +29,7 @@
 class GPUTPCGMPhysicalTrackModel
 {
  public:
-  GPUTPCGMPhysicalTrackModel();
+  GPUTPCGMPhysicalTrackModel() = default;
   GPUTPCGMPhysicalTrackModel(const GPUTPCGMTrackParam& t);
 
   void Set(const GPUTPCGMTrackParam& t);
@@ -158,116 +158,5 @@ class GPUTPCGMPhysicalTrackModel
   float mPt = 1.e4f;   // Pt momentum
 };
 
-GPUTPCGMPhysicalTrackModel::GPUTPCGMPhysicalTrackModel(const GPUTPCGMTrackParam& t) { Set(t); }
-
-void GPUTPCGMPhysicalTrackModel::Set(const GPUTPCGMTrackParam& t)
-{
-  float pti = abs(t.GetQPt());
-  if (pti < 1.e-4f) {
-    pti = 1.e-4f; // set 10000 GeV momentum for straight track
-  }
-  mQ = (t.GetQPt() >= 0) ? 1.f : -1.f; // only charged tracks are considered
-  mX = t.GetX();
-  mY = t.GetY();
-  mZ = t.GetZ();
-
-  mPt = 1.f / pti;
-  mSinPhi = t.GetSinPhi();
-  if (mSinPhi > GPUCA_MAX_SIN_PHI) {
-    mSinPhi = GPUCA_MAX_SIN_PHI;
-  }
-  if (mSinPhi < -GPUCA_MAX_SIN_PHI) {
-    mSinPhi = -GPUCA_MAX_SIN_PHI;
-  }
-  mCosPhi = sqrt((1.f - mSinPhi) * (1.f + mSinPhi));
-  mSecPhi = 1.f / mCosPhi;
-  mDzDs = t.GetDzDs();
-  mDlDs = sqrt(1.f + mDzDs * mDzDs);
-  mP = mPt * mDlDs;
-
-  mPy = mPt * mSinPhi;
-  mPx = mPt * mCosPhi;
-  mPz = mPt * mDzDs;
-  mQPt = mQ * pti;
-}
-
-void GPUTPCGMPhysicalTrackModel::Set(float X, float Y, float Z, float Px, float Py, float Pz, float Q)
-{
-  mX = X;
-  mY = Y;
-  mZ = Z;
-  mPx = Px;
-  mPy = Py;
-  mPz = Pz;
-  mQ = (Q >= 0) ? 1 : -1;
-  UpdateValues();
-}
-
-void GPUTPCGMPhysicalTrackModel::UpdateValues()
-{
-  float px = mPx;
-  if (abs(px) < 1.e-4f) {
-    px = copysign(1.e-4f, px);
-  }
-
-  mPt = sqrt(px * px + mPy * mPy);
-  float pti = 1.f / mPt;
-  mP = sqrt(px * px + mPy * mPy + mPz * mPz);
-  mSinPhi = mPy * pti;
-  mCosPhi = px * pti;
-  mSecPhi = mPt / px;
-  mDzDs = mPz * pti;
-  mDlDs = mP * pti;
-  mQPt = mQ * pti;
-}
-
-bool GPUTPCGMPhysicalTrackModel::SetDirectionAlongX()
-{
-  //
-  // set direction of movenment collinear to X axis
-  // return value is true when direction has been changed
-  //
-  if (mPx >= 0) {
-    return 0;
-  }
-
-  mPx = -mPx;
-  mPy = -mPy;
-  mPz = -mPz;
-  mQ = -mQ;
-  UpdateValues();
-  return 1;
-}
-
-float GPUTPCGMPhysicalTrackModel::GetMirroredY(float Bz) const
-{
-  // get Y of the point which has the same X, but located on the other side of trajectory
-  if (abs(Bz) < 1.e-8f) {
-    Bz = 1.e-8f;
-  }
-  return mY - 2.f * mQ * mPx / Bz;
-}
-
-void GPUTPCGMPhysicalTrackModel::RotateLight(float alpha)
-{
-  //* Rotate the coordinate system in XY on the angle alpha
-
-  float cA = cos(alpha);
-  float sA = sin(alpha);
-  float x = mX, y = mY, px = mPx, py = mPy;
-  mX = x * cA + y * sA;
-  mY = -x * sA + y * cA;
-  mPx = px * cA + py * sA;
-  mPy = -px * sA + py * cA;
-}
-
-void GPUTPCGMPhysicalTrackModel::Rotate(float alpha)
-{
-  //* Rotate the coordinate system in XY on the angle alpha
-  RotateLight(alpha);
-  UpdateValues();
-}
-} // namespace gpu
-} // namespace GPUCA_NAMESPACE
 
 #endif

@@ -55,7 +55,7 @@ int PHFullKFTrkProp::process_event(PHCompositeNode* topNode)
 int PHFullKFTrkProp::Process()
 {
   // get tracklets
-  for(phtrk_iter = _track_map->begin();
+  for(auto phtrk_iter = _track_map->begin();
     phtrk_iter != _track_map->end();
     ++phtrk_iter)
   {
@@ -75,8 +75,11 @@ int PHFullKFTrkProp::Process()
     _aProp.SetSeedingErrors(true);
     _aProp.SetFitInProjections(true);
     _aField.SetFieldNominal(1.4);
-    _aField.SetFieldTpc(0.,0.,1.4);
-    _aProp.SetPolynomialField(_aField);
+    float BxCoeff[10] = {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
+    float ByCoeff[10] = {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
+    float BzCoeff[10] = {0.,0.,0.,0.,0.,0.,0.,0.,0.,0.};
+    _aField.SetFieldTpc(BxCoeff,ByCoeff,BzCoeff);
+    _aProp.SetPolynomialField(&_aField);
     _aProp.SetTrack(&_aTrack,alpha);
     
   }

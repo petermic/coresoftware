@@ -22,7 +22,6 @@ namespace o2
 {
 namespace base
 {
-struct MatBudget;
 class MatLayerCylSet;
 } // namespace base
 } // namespace o2
@@ -45,7 +44,7 @@ class GPUTPCGMPropagator
     TRD = 2  ///< outer TPC -> outer TRD
   };
 
-  GPUTPCGMPropagator();
+  GPUTPCGMPropagator() = default;
 
   struct MaterialCorrection {
     MaterialCorrection() : radLen(29.532f), rho(1.025e-3f), rhoOverRadLen(rho / radLen), DLMax(0.f), EP2(0.f), sigmadE2(0.f), k22(0.f), k33(0.f), k43(0.f), k44(0.f) {}
@@ -54,7 +53,6 @@ class GPUTPCGMPropagator
   };
 
   void SetMaterial(float radLen, float rho);
-  o2::base::MatBudget getMatBudget(float* p1, float* p2);
 
   void SetPolynomialField(const GPUTPCGMPolynomialField* field) { mField = field; }
 
@@ -144,38 +142,5 @@ class GPUTPCGMPropagator
   const o2::base::MatLayerCylSet* mMatLUT = nullptr;
 };
 
-void GPUTPCGMPropagator::SetMaterial(float radLen, float rho)
-{
-  mMaterial.rho = rho;
-  mMaterial.radLen = radLen;
-  mMaterial.rhoOverRadLen = (radLen > 1.e-4f) ? rho / radLen : 0.f;
-  CalculateMaterialCorrection();
-}
-
-void GPUTPCGMPropagator::SetTrack(GPUTPCGMTrackParam* track, float Alpha)
-{
-  mT = track;
-  if (!mT) {
-    return;
-  }
-  mT0.Set(*mT);
-  mAlpha = Alpha;
-  CalculateMaterialCorrection();
-}
-
-float GPUTPCGMPropagator::GetMirroredYModel() const
-{
-  float Bz = GetBz(mAlpha, mT0.GetX(), mT0.GetY(), mT0.GetZ());
-  return mT0.GetMirroredY(Bz);
-}
-
-float GPUTPCGMPropagator::GetMirroredYTrack() const
-{
-  if (!mT) {
-    return -1.E10f;
-  }
-  float Bz = GetBz(mAlpha, mT->GetX(), mT->GetY(), mT->GetZ());
-  return mT->GetMirroredY(Bz);
-}
 
 #endif

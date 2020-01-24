@@ -21,7 +21,6 @@ typedef unsigned int calink;
 typedef unsigned int cahit;
 
 struct cahit2{cahit x, y;};
-}
 
 #define CA_GET_ROW_HIT(iRow) tracklet.RowHit(iRow)
 #define CA_SET_ROW_HIT(iRow, val) tracklet.SetRowHit(iRow, val)

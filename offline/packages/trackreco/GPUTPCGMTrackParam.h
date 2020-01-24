@@ -21,14 +21,9 @@
 #include <cmath>
 #include <algorithm>
 
-class AliExternalTrackParam;
-
-class GPUTPCGMMerger;
-class GPUTPCGMBorderTrack;
 struct GPUParam;
 class GPUTPCGMPhysicalTrackModel;
 class GPUTPCGMPolynomialField;
-class GPUTPCGMMergedTrack;
 class GPUTPCGMPropagator;
 
 /**
@@ -38,6 +33,9 @@ class GPUTPCGMPropagator;
  * which is used by the GPUTPCGMTracker slice tracker.
  *
  */
+
+constexpr double GPUCA_MAX_SIN_PHI = 0.999;
+
 class GPUTPCGMTrackParam
 {
  public:
@@ -141,16 +139,7 @@ class GPUTPCGMTrackParam
   bool CheckNumericalQuality(float overrideCovYY = -1.f) const;
   bool CheckCov() const;
 
-  bool Fit(const GPUTPCGMMerger* merger, int iTrk, GPUTPCGMMergedTrackHit* clusters, int& N, int& NTolerated, float& Alpha, int attempt = 0, float maxSinPhi = GPUCA_MAX_SIN_PHI, GPUTPCOuterParam* outerParam = nullptr, GPUdEdxInfo* dEdxOut = nullptr);
   void MirrorTo(GPUTPCGMPropagator& prop, float toY, float toZ, bool inFlyDirection, const GPUParam& param, unsigned char row, unsigned char clusterState, bool mirrorParameters);
-  int MergeDoubleRowClusters(int ihit, int wayDirection, GPUTPCGMMergedTrackHit* clusters, const GPUTPCGMMerger* merger, GPUTPCGMPropagator& prop, float& xx, float& yy, float& zz, int maxN, float clAlpha, unsigned char& clusterState, bool rejectChi2);
-
-  void AttachClustersMirror(const GPUTPCGMMerger* Merger, int slice, int iRow, int iTrack, float toY, GPUTPCGMPropagator& prop);
-  void AttachClustersPropagate(const GPUTPCGMMerger* Merger, int slice, int lastRow, int toRow, int iTrack, bool goodLeg, GPUTPCGMPropagator& prop, bool inFlyDirection, float maxSinPhi = GPUCA_MAX_SIN_PHI);
-  void AttachClusters(const GPUTPCGMMerger* Merger, int slice, int iRow, int iTrack, bool goodLeg);
-  void AttachClusters(const GPUTPCGMMerger* Merger, int slice, int iRow, int iTrack, bool goodLeg, float Y, float Z);
-
-  int FollowCircle(const GPUTPCGMMerger* Merger, GPUTPCGMPropagator& prop, int slice, int iRow, int iTrack, bool goodLeg, float toAlpha, float toX, float toY, int toSlice, int toRow, bool inFlyDirection);
 
   void MarkClusters(GPUTPCGMMergedTrackHit* clusters, int ihitFirst, int ihitLast, int wayDirection, unsigned char state)
   {
@@ -170,8 +159,6 @@ class GPUTPCGMTrackParam
   }
 
   bool Rotate(float alpha);
-  void ShiftZ(const GPUTPCGMMergedTrackHit* clusters, const GPUTPCGMMerger* merger, int N);
-
   static float Reciprocal(float x) { return 1.f / x; }
   static void Assign(float& x, bool mask, float v)
   {
@@ -186,13 +173,6 @@ class GPUTPCGMTrackParam
       x = v;
     }
   }
-
-  static void RefitTrack(GPUTPCGMMergedTrack& track, int iTrk, const GPUTPCGMMerger* merger, GPUTPCGMMergedTrackHit* clusters);
-
-#if defined(GPUCA_ALIROOT_LIB) & !defined(GPUCA_GPUCODE)
-  bool GetExtParam(AliExternalTrackParam& T, double alpha) const;
-  void SetExtParam(const AliExternalTrackParam& T);
-#endif
 
   void ConstrainSinPhi(float limit = GPUCA_MAX_SIN_PHI)
   {
@@ -215,48 +195,5 @@ class GPUTPCGMTrackParam
   int mNDF;     // the Number of Degrees of Freedom
 };
 
-int GPUTPCGMTrackParam::initResetT0()
-{
-  const float absQPt = abs(mP[4]);
-  if (absQPt < (150.f / 40.f)) {
-    return 150.f / 40.f;
-  }
-  return max(10.f, 150.f / mP[4]);
-}
-
-void GPUTPCGMTrackParam::ResetCovariance()
-{
-  mC[0] = 100.f;
-  mC[1] = 0.f;
-  mC[2] = 100.f;
-  mC[3] = 0.f;
-  mC[4] = 0.f;
-  mC[5] = 1.f;
-  mC[6] = 0.f;
-  mC[7] = 0.f;
-  mC[8] = 0.f;
-  mC[9] = 10.f;
-  mC[10] = 0.f;
-  mC[11] = 0.f;
-  mC[12] = 0.f;
-  mC[13] = 0.f;
-  mC[14] = 10.f;
-  mChi2 = 0;
-  mNDF = -5;
-}
-
-float GPUTPCGMTrackParam::GetMirroredY(float Bz) const
-{
-  // get Y of the point which has the same X, but located on the other side of trajectory
-  float qptBz = GetQPt() * Bz;
-  float cosPhi2 = 1.f - GetSinPhi() * GetSinPhi();
-  if (abs(qptBz) < 1.e-8f) {
-    qptBz = 1.e-8f;
-  }
-  if (cosPhi2 < 0.f) {
-    cosPhi2 = 0.f;
-  }
-  return GetY() - 2.f * sqrt(cosPhi2) / qptBz;
-}
 
 #endif

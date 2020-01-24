@@ -22,7 +22,7 @@
 //
 // kCLight = 0.000299792458;
 // Kappa = -Bz*kCLight*QPt;
-// R  = 1/fstd::absf(Kappa);
+// R  = 1/ffabsf(Kappa);
 // Xc = X - sin(Phi)/Kappa;
 // Yc = Y + cos(Phi)/Kappa;
 //
@@ -56,7 +56,7 @@ float GPUTPCTrackParam::GetS(float x, float y, float Bz) const
   x -= GetX();
   y -= GetY();
   float dS = x * ex + y * ey;
-  if (std::abs(k) > 1.e-4f) {
+  if (fabs(k) > 1.e-4f) {
     dS = atan2(k * dS, 1 + k * (x * ey - y * ex)) / k;
   }
   return dS;
@@ -80,8 +80,8 @@ void GPUTPCTrackParam::GetDCAPoint(float x, float y, float z, float& xp, float& 
   yp = y0 + (dy + ex * ((dx * dx + dy * dy) * k - 2 * (-dx * ey + dy * ex)) / (a + 1)) / a;
   float s = GetS(x, y, Bz);
   zp = GetZ() + GetDzDs() * s;
-  if (std::abs(k) > 1.e-2f) {
-    float dZ = std::abs(GetDzDs() * 2*M_PI / k);
+  if (fabs(k) > 1.e-2f) {
+    float dZ = fabs(GetDzDs() * 2*M_PI / k);
     if (dZ > .1f) {
       zp += round((z - zp) / dZ) * dZ;
     }
@@ -110,7 +110,7 @@ bool GPUTPCTrackParam::TransportToX(float x, GPUTPCTrackLinearisation& t0, float
 
   // check for intersection with X=x
 
-  if (std::abs(ey1) > maxSinPhi) {
+  if (fabs(ey1) > maxSinPhi) {
     return 0;
   }
 
@@ -123,7 +123,7 @@ bool GPUTPCTrackParam::TransportToX(float x, GPUTPCTrackLinearisation& t0, float
   float ss = ey + ey1;
   float cc = ex + ex1;
 
-  if (std::abs(cc) < 1.e-4f || std::abs(ex) < 1.e-4f || std::abs(ex1) < 1.e-4f) {
+  if (fabs(cc) < 1.e-4f || fabs(ex) < 1.e-4f || fabs(ex1) < 1.e-4f) {
     return 0;
   }
 
@@ -142,7 +142,7 @@ bool GPUTPCTrackParam::TransportToX(float x, GPUTPCTrackLinearisation& t0, float
   if (dSin < -1) {
     dSin = -1;
   }
-  float dS = (std::abs(k) > 1.e-4f) ? (2 * asin(dSin) / k) : dl;
+  float dS = (fabs(k) > 1.e-4f) ? (2 * asin(dSin) / k) : dl;
   float dz = dS * t0.DzDs();
 
   if (DL) {
@@ -225,7 +225,7 @@ bool GPUTPCTrackParam::TransportToX(float x, float sinPhi0, float cosPhi0, float
   float ey = sinPhi0;
   float dx = x - X();
 
-  if (std::abs(ex) < 1.e-4f) {
+  if (fabs(ex) < 1.e-4f) {
     return 0;
   }
   float exi = 1.f / ex;
@@ -242,7 +242,7 @@ bool GPUTPCTrackParam::TransportToX(float x, float sinPhi0, float cosPhi0, float
   // float H4[5] = { 0, 0, 0,  0,  1 };
 
   float sinPhi = SinPhi() + dxBz * QPt();
-  if (maxSinPhi > 0 && std::abs(sinPhi) > maxSinPhi) {
+  if (maxSinPhi > 0 && fabs(sinPhi) > maxSinPhi) {
     return 0;
   }
 
@@ -475,7 +475,7 @@ bool GPUTPCTrackParam::CorrectForMeanMaterial(float xOverX0, float xTimesRho, co
   // Energy losses************************
 
   float dE = par.bethe * xTimesRho;
-  if (std::abs(dE) > 0.3f * par.e) {
+  if (fabs(dE) > 0.3f * par.e) {
     return 0; // 30% energy loss is too much!
   }
   float corr = (1.f - par.EP2 * dE);
@@ -489,11 +489,11 @@ bool GPUTPCTrackParam::CorrectForMeanMaterial(float xOverX0, float xTimesRho, co
   mC42 *= corr;
   mC43 *= corr;
   mC44 *= corr * corr;
-  mC44 += par.sigmadE2 * std::abs(dE);
+  mC44 += par.sigmadE2 * fabs(dE);
 
   // Multiple scattering******************
 
-  float theta2 = par.theta2 * std::abs(xOverX0);
+  float theta2 = par.theta2 * fabs(xOverX0);
   mC22 += theta2 * par.k22 * (1.f - GetPar(2)) * (1.f + GetPar(2));
   mC33 += theta2 * par.k33;
   mC43 += theta2 * par.k43;
@@ -515,7 +515,7 @@ bool GPUTPCTrackParam::Rotate(float alpha, float maxSinPhi)
   float cosPhi = cP * cA + sP * sA;
   float sinPhi = -cP * sA + sP * cA;
 
-  if (std::abs(sinPhi) > maxSinPhi || std::abs(cosPhi) < 1.e-2f || std::abs(cP) < 1.e-2f) {
+  if (fabs(sinPhi) > maxSinPhi || fabs(cosPhi) < 1.e-2f || fabs(cP) < 1.e-2f) {
     return 0;
   }
 
@@ -572,7 +572,7 @@ bool GPUTPCTrackParam::Rotate(float alpha, GPUTPCTrackLinearisation& t0, float m
   float cosPhi = cP * cA + sP * sA;
   float sinPhi = -cP * sA + sP * cA;
 
-  if (std::abs(sinPhi) > maxSinPhi || std::abs(cosPhi) < 1.e-2f || std::abs(cP) < 1.e-2f) {
+  if (fabs(sinPhi) > maxSinPhi || fabs(cosPhi) < 1.e-2f || fabs(cP) < 1.e-2f) {
     return 0;
   }
 
@@ -644,7 +644,7 @@ bool GPUTPCTrackParam::Filter(float y, float z, float err2Y, float err2Z, float 
   std::cout << "Par(0) = " << GetPar(0) << std::endl;
   std::cout << "z0 = " << z0 << std::endl;
   std::cout << "sinPhi = " << sinPhi << std::endl;
-  if (maxSinPhi > 0 && std::abs(sinPhi) >= maxSinPhi) {
+  if (maxSinPhi > 0 && fabs(sinPhi) >= maxSinPhi) {
     return 0;
   }
 
@@ -692,15 +692,15 @@ bool GPUTPCTrackParam::CheckNumericalQuality() const
     ok = 0;
   }
   if (c[0] > 5.f || c[2] > 5.f || c[5] > 2.f || c[9] > 2
-      //|| ( std::abs( QPt() ) > 1.e-2 && c[14] > 2. )
+      //|| ( fabs( QPt() ) > 1.e-2 && c[14] > 2. )
   ) {
     ok = 0;
   }
 
-  if (std::abs(SinPhi()) > GPUCA_MAX_SIN_PHI) {
+  if (fabs(SinPhi()) > GPUCA_MAX_SIN_PHI) {
     ok = 0;
   }
-  if (std::abs(QPt()) > 1.f / 0.05f) {
+  if (fabs(QPt()) > 1.f / 0.05f) {
     ok = 0;
   }
   if (ok) {

@@ -8,19 +8,14 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-/// \file GPUTPCGMOfflineStatisticalErrors.h
+/// \file GPUDataTypes.cxx
 /// \author David Rohr
 
-#ifndef GPUTPCGMOFFLINESTATISTICALERRORS
-#define GPUTPCGMOFFLINESTATISTICALERRORS
+#include "GPUDataTypes.h"
 
-#include "GPUTPCGMMergedTrackHit.h"
+//constexpr const char* const GPUDataTypes::RECO_STEP_NAMES[];
 
-struct GPUTPCGMMergedTrackHit;
-
-struct GPUTPCGMOfflineStatisticalErrors {
-  void SetCurCluster(GPUTPCGMMergedTrackHit* /*c*/) {}
-  void GetOfflineStatisticalErrors(float& /*err2Y*/, float& /*err2Z*/, float /*sinPhi*/, float /*dzds*/, unsigned char /*clusterState*/) const {}
-};
-
-#endif
+GPUDataTypes::DeviceType GPUDataTypes::GetDeviceType(const char* type)
+{ 
+  return GPUDataTypes::DeviceType::CPU;
+}
