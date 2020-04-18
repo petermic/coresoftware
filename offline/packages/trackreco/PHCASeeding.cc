@@ -398,9 +398,8 @@ int PHCASeeding::Process(PHCompositeNode *topNode)
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
-int PHCASeeding::FindSeedsLayerSkip(double cosTheta_limit, TNtuple* NT, PHTimer * t_seed)
+vector<pointKey> PHCASeeding::FindBidirectionallyLinkedClusters()
 {
-  int nseeds = 0;
   vector<pointKey> allClusters;
   vector<set<keylink>> belowLinks;
   vector<set<keylink>> aboveLinks;
@@ -410,7 +409,7 @@ int PHCASeeding::FindSeedsLayerSkip(double cosTheta_limit, TNtuple* NT, PHTimer 
   QueryTree(_rtree,
             0, // phi
             -3, // eta
-            _nlayers_maps+_nlayers_intt+2./3.*_nlayers_tpc-0.5, // layer 
+            _nlayers_maps+_nlayers_intt,//+2./3.*_nlayers_tpc-0.5, // layer 
             2*M_PI, // phi
             3, // eta
             _nlayers_maps+_nlayers_intt+_nlayers_tpc+0.5, // layer
@@ -419,13 +418,18 @@ int PHCASeeding::FindSeedsLayerSkip(double cosTheta_limit, TNtuple* NT, PHTimer 
   cout << "allClusters search time: " << t_seed->get_accumulated_time() / 1000 << " s" << endl;
   LogDebug(" number of total clusters: " << allClusters.size() << endl);
   t_seed->restart();
+  vector<vector<keylink>> FindBidirectionalLinks(allClusters);
+}
+
+vector<vector<keylink>> FindBidirectionalLinks(vector<pointKey> clusters,PHTimer* t)
+{
   double cluster_find_time = 0;
   double rtree_query_time = 0;
   double transform_time = 0;
   double compute_best_angle_time = 0;
   double set_insert_time = 0;
   size_t nclusters = 0;
-  for (vector<pointKey>::iterator StartCluster = allClusters.begin(); StartCluster != allClusters.end(); ++StartCluster)
+  for (vector<pointKey>::iterator StartCluster = clusters.begin(); StartCluster != clusters.end(); ++StartCluster)
   {
     nclusters++;
     t_seed->stop();
@@ -540,7 +544,7 @@ int PHCASeeding::FindSeedsLayerSkip(double cosTheta_limit, TNtuple* NT, PHTimer 
         }
       }
     }
-
+/*
     if(maxCosPlaneAngle > cosTheta_limit)
     {
       cout << "Starting two layers below branch...\n";
@@ -620,7 +624,7 @@ int PHCASeeding::FindSeedsLayerSkip(double cosTheta_limit, TNtuple* NT, PHTimer 
         }
       }
     }
-
+*/
     t_seed->stop();
     compute_best_angle_time += t_seed->elapsed();
     t_seed->restart();
@@ -672,6 +676,20 @@ int PHCASeeding::FindSeedsLayerSkip(double cosTheta_limit, TNtuple* NT, PHTimer 
       }
     }
   }
+  return bidirectionalLinks;
+}
+  // flatten links into cluster lists
+  vector<TrkrDefs::cluskey> involvedClusters;
+  for(int layer = _nlayers_tpc-1; layer>0; --layer)
+  {
+    for(vector<keylink>::iterator bidirectionalLink = bidirectionalLinks[layer].begin(); bidirectionalLink != bidirectionalLinks[layer].end(); ++bidirectionLink)
+    {
+      involvedClusters.push_back(*bidirectionalLink[0]);
+      involvedClusters.push_back(*bidirectionalLink[1]);
+    }
+  }
+  return involvedClusters;
+}
   t_seed->stop();
   cout << "bidirectional link forming time: " << t_seed->get_accumulated_time() / 1000 << " s" << endl;
   t_seed->restart();   
