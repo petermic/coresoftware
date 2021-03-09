@@ -79,6 +79,11 @@ int PHSimpleKFProp::Setup(PHCompositeNode* topNode)
   int ret = get_nodes(topNode);
   if (ret != Fun4AllReturnCodes::EVENT_OK) return ret;
   fitter = std::make_shared<ALICEKF>(topNode,_cluster_map,_fieldDir,_min_clusters_per_track,_max_sin_phi,Verbosity());
+  fitter->useConstBField(_use_const_field);
+  fitter->useFixedClusterError(_use_fixed_clus_err);
+  fitter->setFixedClusterError(0,_fixed_clus_err.at(0));
+  fitter->setFixedClusterError(1,_fixed_clus_err.at(1));
+  fitter->setFixedClusterError(2,_fixed_clus_err.at(2));
   _field_map = PHFieldUtility::GetFieldMapNode(nullptr,topNode);
   return Fun4AllReturnCodes::EVENT_OK;
 }
@@ -488,8 +493,8 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(SvtxTrack* track)
         kftrack.SetY(-ccX*sin(ccphi)+ccY*cos(ccphi));
         kftrack.SetZ(cc->getZ());
         double ccaY = -ccX*sin(ccphi)+ccY*cos(ccphi);
-        double ccerrY = cc->getError(0,0)*sin(ccphi)*sin(ccphi)+cc->getError(0,1)*sin(ccphi)*cos(ccphi)+cc->getError(1,1)*cos(ccphi)*cos(ccphi);
-        double ccerrZ = cc->getError(2,2);
+        double ccerrY = fitter->getClusterError(cc,0,0)*sin(ccphi)*sin(ccphi)+fitter->getClusterError(cc,0,1)*sin(ccphi)*cos(ccphi)+fitter->getClusterError(cc,1,1)*cos(ccphi)*cos(ccphi);
+        double ccerrZ = fitter->getClusterError(cc,2,2);
         kftrack.Filter(ccaY,cc->getZ(),ccerrY,ccerrZ,_max_sin_phi);
         if(Verbosity()>0) cout << "added cluster" << endl;
         old_phi = ccphi;
@@ -590,8 +595,8 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(SvtxTrack* track)
 */
         kftrack_up.Rotate(alpha,kfline_up,10.);
         double ccaY = -ccX*sin(ccphi)+ccY*cos(ccphi);
-        double ccerrY = cc->getError(0,0)*sin(ccphi)*sin(ccphi)+cc->getError(0,1)*sin(ccphi)*cos(ccphi)+cc->getError(1,1)*cos(ccphi)*cos(ccphi);
-        double ccerrZ = cc->getError(2,2);
+        double ccerrY = fitter->getClusterError(cc,0,0)*sin(ccphi)*sin(ccphi)+fitter->getClusterError(cc,1,0)*sin(ccphi)*cos(ccphi)+fitter->getClusterError(cc,1,1)*cos(ccphi)*cos(ccphi);
+        double ccerrZ = fitter->getClusterError(cc,2,2);
         kftrack_up.Filter(ccaY,cc->getZ(),ccerrY,ccerrZ,_max_sin_phi);
         kftrack_up.SetX(ccX*cos(ccphi)+ccY*sin(ccphi));
         kftrack_up.SetY(-ccX*sin(ccphi)+ccY*cos(ccphi));

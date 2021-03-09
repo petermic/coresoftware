@@ -1003,6 +1003,11 @@ int PHCASeeding::Setup(PHCompositeNode *topNode)
   t_fill->stop();
   t_seed->stop();
   fitter = std::make_shared<ALICEKF>(topNode,_cluster_map,_fieldDir,_min_clusters_per_track,_max_sin_phi,Verbosity());
+  fitter->useConstBField(_use_const_field);
+  fitter->useFixedClusterError(_use_fixed_clus_err);
+  fitter->setFixedClusterError(0,_fixed_clus_err.at(0));
+  fitter->setFixedClusterError(1,_fixed_clus_err.at(1));
+  fitter->setFixedClusterError(2,_fixed_clus_err.at(2));
   return Fun4AllReturnCodes::EVENT_OK;
 }
 

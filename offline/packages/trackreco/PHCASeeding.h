@@ -105,6 +105,10 @@ class PHCASeeding : public PHTrackSeeding
       _fieldDir = -1;     
   }
 
+  void useConstBField(bool opt){_use_const_field = opt;}
+  void useFixedClusterError(bool opt){_use_fixed_clus_err = opt;}
+  void setFixedClusterError(int i, double val){_fixed_clus_err.at(i) = val;}
+
  protected:
   virtual int Setup(PHCompositeNode *topNode);
   virtual int Process(PHCompositeNode *topNode);
@@ -144,7 +148,6 @@ class PHCASeeding : public PHTrackSeeding
   pointKey makepointKey(TrkrDefs::cluskey k);
   void publishSeeds(std::vector<SvtxTrack_v1> seeds);
 
- private:
   std::map<int, unsigned int> _layer_ilayer_map_all;
   std::map<int, unsigned int> _layer_ilayer_map;
 
@@ -169,6 +172,9 @@ class PHCASeeding : public PHTrackSeeding
   float _cosTheta_limit;
   //std::vector<float> _radii_all;
   double _fieldDir = -1;
+  bool _use_const_field = false;
+  bool _use_fixed_clus_err = true;
+  std::array<double,3> _fixed_clus_err = {.1,.1,.1};
 
   std::shared_ptr<ALICEKF> fitter;
 

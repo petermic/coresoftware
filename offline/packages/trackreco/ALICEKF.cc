@@ -41,6 +41,16 @@ double ALICEKF::get_Bz(double x, double y, double z)
   return bfield[2]/tesla;
 }
 
+double ALICEKF::getClusterError(TrkrCluster* c, int i, int j)
+{
+  if(_use_fixed_clus_error) 
+  {
+     if(i==j) return _fixed_clus_error.at(i)*_fixed_clus_error.at(i);
+     else return 0.;
+  }
+  else return c->getError(i,j);
+}
+
 vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyLists,bool use_nhits_limit)
 {
 //  TFile* f = new TFile("/sphenix/u/mjpeters/macros_hybrid/detectors/sPHENIX/pull.root", "RECREATE");
@@ -209,8 +219,8 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
       //double nextCluster_alice_y = 0.;
       double nextCluster_alice_y = -nextCluster_x*sin(newPhi)+nextCluster_y*cos(newPhi);
       LogDebug("next cluster ALICE y = " << nextCluster_alice_y << endl);
-      double y2_error = nextCluster->getError(0,0)*sin(newPhi)*sin(newPhi)+2*nextCluster->getError(0,1)*cos(newPhi)*sin(newPhi)+nextCluster->getError(1,1)*cos(newPhi)*cos(newPhi);
-      double z2_error = nextCluster_zerr*nextCluster_zerr;
+      double y2_error = getClusterError(nextCluster,0,0)*sin(newPhi)*sin(newPhi)+2*getClusterError(nextCluster,0,1)*cos(newPhi)*sin(newPhi)+getClusterError(nextCluster,1,1)*cos(newPhi)*cos(newPhi);
+      double z2_error = getClusterError(nextCluster,2,2);
       LogDebug("track ALICE SinPhi = " << trackSeed.GetSinPhi() << endl);
       // Apply Kalman filter
       if(!trackSeed.Filter(nextCluster_alice_y,nextCluster_z,y2_error,z2_error,_max_sin_phi))

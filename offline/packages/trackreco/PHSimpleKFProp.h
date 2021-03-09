@@ -53,6 +53,9 @@ class PHSimpleKFProp : public PHTrackPropagating
       _fieldDir = -1;
   }
   void set_max_window(double s){_max_dist = s;}
+  void useConstBField(bool opt){_use_const_field = opt;}
+  void useFixedClusterError(bool opt){_use_fixed_clus_err = opt;}
+  void setFixedClusterError(int i, double val){_fixed_clus_err.at(i) = val;}
  protected:
   /// setup interface for trackers, called in InitRun, setup things like pointers to nodes.
   /// overrided in derived classes
@@ -139,6 +142,9 @@ class PHSimpleKFProp : public PHTrackPropagating
   void line_fit(std::vector<std::pair<double,double>> points, double &A, double &B);
   void line_fit_clusters(std::vector<TrkrCluster*> clusters, double &A, double &B);
   void CircleFitByTaubin(std::vector<std::pair<double,double>> points, double &R, double &X0, double &Y0);
+  bool _use_const_field = false;
+  bool _use_fixed_clus_err = true;
+  std::array<double,3> _fixed_clus_err = {.1,.1,.1};
 };
 
 #endif
