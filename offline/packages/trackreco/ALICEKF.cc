@@ -100,7 +100,7 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
     double second_alice_y = -second_x*sin(first_phi)+second_y*cos(first_phi);
     double init_SinPhi = second_alice_y / sqrt(delta_alice_x*delta_alice_x + second_alice_y*second_alice_y);
     double delta_z = second_z - z0;
-    double init_DzDs = delta_z / sqrt(delta_alice_x*delta_alice_x + second_alice_y*second_alice_y);
+    double init_DzDs = -delta_z / sqrt(delta_alice_x*delta_alice_x + second_alice_y*second_alice_y);
     trackSeed.SetSinPhi(init_SinPhi);
     LogDebug("Set initial SinPhi to " << init_SinPhi << endl);
     trackSeed.SetDzDs(init_DzDs);
@@ -128,9 +128,10 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
     if(Verbosity()>1) cout << "dphi: " << dphi << endl;
     if(dphi>M_PI) dphi = 2*M_PI - dphi;
     if(Verbosity()>1) cout << "corrected dphi: " << dphi << endl;
-    if(dphi<0) init_QPt *= -1;
-    if(Verbosity()>0) cout << "initial QPt: " << init_QPt << endl;
+    if(dphi<0) init_QPt = -1*init_QPt;
+    LogDebug("initial QPt: " << init_QPt << endl);
     trackSeed.SetQPt(init_QPt);
+
 
     GPUTPCTrackLinearisation trackLine(trackSeed);
 
@@ -222,6 +223,7 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
       double y2_error = getClusterError(nextCluster,0,0)*sin(newPhi)*sin(newPhi)+2*getClusterError(nextCluster,0,1)*cos(newPhi)*sin(newPhi)+getClusterError(nextCluster,1,1)*cos(newPhi)*cos(newPhi);
       double z2_error = getClusterError(nextCluster,2,2);
       LogDebug("track ALICE SinPhi = " << trackSeed.GetSinPhi() << endl);
+      LogDebug("track DzDs = " << trackSeed.GetDzDs() << endl);
       // Apply Kalman filter
       if(!trackSeed.Filter(nextCluster_alice_y,nextCluster_z,y2_error,z2_error,_max_sin_phi))
       {
@@ -378,7 +380,7 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
       continue;
     }
 */
-    double track_pt = 1./trackSeed.GetQPt();
+    double track_pt = fabs(1./trackSeed.GetQPt());
     #if defined(_DEBUG_)
     double track_pY = track_pt*trackSeed.GetSinPhi();
     double track_pX = sqrt(track_pt*track_pt-track_pY*track_pY);
