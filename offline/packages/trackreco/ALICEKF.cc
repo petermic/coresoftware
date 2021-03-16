@@ -127,6 +127,7 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
     double dphi = phi_second - phi_first;
     if(Verbosity()>1) cout << "dphi: " << dphi << endl;
     if(dphi>M_PI) dphi = 2*M_PI - dphi;
+    if(dphi<-M_PI) dphi = 2*M_PI + dphi;
     if(Verbosity()>1) cout << "corrected dphi: " << dphi << endl;
     if(dphi<0) init_QPt = -1*init_QPt;
     LogDebug("initial QPt: " << init_QPt << endl);
@@ -390,7 +391,7 @@ vector<SvtxTrack_v1> ALICEKF::ALICEKalmanFilter(vector<keylist> trackSeedKeyList
     #endif
     double track_pterr = sqrt(trackSeed.GetErr2QPt())/(trackSeed.GetQPt()*trackSeed.GetQPt());
     // If Kalman filter doesn't do its job (happens often with short seeds), use the circle-fit estimate as the central value
-    if(track_pterr>fabs(track_pt)) track_pt = 1./init_QPt;
+    if(trackKeyChain->size()<10) track_pt = fabs(1./init_QPt);
     LogDebug("track pt = " << track_pt << " +- " << track_pterr << endl);
     LogDebug("track ALICE p = (" << track_pX << ", " << track_pY << ", " << track_pz << ")" << endl);
     LogDebug("track p = (" << track_px << ", " << track_py << ", " << track_pz << ")" << endl);

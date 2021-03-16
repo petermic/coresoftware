@@ -211,7 +211,7 @@ void PHSimpleKFProp::PrepareKDTrees()
 {
   //***** convert clusters to kdhits, and divide by layer
   std::vector<std::vector<std::vector<double> > > kdhits;
-  kdhits.resize(56);
+  kdhits.resize(58);
   if (!_cluster_map)
   {
     std::cout << "WARNING: (tracking.PHTpcTrackerUtil.convert_clusters_to_hits) cluster map is not provided" << endl;
@@ -222,6 +222,8 @@ void PHSimpleKFProp::PrepareKDTrees()
   {
     TrkrDefs::cluskey cluskey = it->first;
     TrkrCluster* cluster = it->second;
+    if(!cluster) continue;
+    
     int layer = TrkrDefs::getLayer(cluskey);
     std::vector<double> kdhit(4);
     kdhit[0] = cluster->getPosition(0);

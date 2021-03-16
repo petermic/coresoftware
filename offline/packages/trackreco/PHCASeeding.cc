@@ -535,12 +535,12 @@ int PHCASeeding::FindSeedsWithMerger()
   pair<vector<unordered_set<keylink>>,vector<unordered_set<keylink>>> links = CreateLinks(fromPointKey(allClusters));
   vector<vector<keylink>> biLinks = FindBiLinks(links.first,links.second);
   vector<keylist> trackSeedKeyLists = FollowBiLinks(biLinks);
-//  if(Verbosity()>0)  std::cout << "seeds before merge: " << trackSeedKeyLists.size() << "\n";
-//  vector<keylist> mergedSeedKeyLists = MergeSeeds(trackSeedKeyLists);
-//  if(Verbosity()>0) std::cout << "seeds after merge round 1: " << mergedSeedKeyLists.size() << "\n";
-//  mergedSeedKeyLists = MergeSeeds(mergedSeedKeyLists);
-//  if(Verbosity()>0) std::cout << "seeds after merge round 2: " << mergedSeedKeyLists.size() << "\n";
-  vector<SvtxTrack_v1> seeds = fitter->ALICEKalmanFilter(trackSeedKeyLists,true);
+  if(Verbosity()>0)  std::cout << "seeds before merge: " << trackSeedKeyLists.size() << "\n";
+  vector<keylist> mergedSeedKeyLists = MergeSeeds(trackSeedKeyLists);
+  if(Verbosity()>0) std::cout << "seeds after merge round 1: " << mergedSeedKeyLists.size() << "\n";
+  mergedSeedKeyLists = MergeSeeds(mergedSeedKeyLists);
+  if(Verbosity()>0) std::cout << "seeds after merge round 2: " << mergedSeedKeyLists.size() << "\n";
+  vector<SvtxTrack_v1> seeds = fitter->ALICEKalmanFilter(mergedSeedKeyLists,true);
   publishSeeds(seeds);
   return seeds.size();
 }
@@ -583,9 +583,9 @@ pair<vector<unordered_set<keylink>>,vector<unordered_set<keylink>>> PHCASeeding:
     if(StartLayer < _start_layer) continue;
     if(StartLayer > _end_layer) continue;
     TrkrCluster* StartCl = _cluster_map->findCluster(StartCluster->second);
-    double StartX = StartCl->getPosition(0)-_vertex->get_x();
-    double StartY = StartCl->getPosition(1)-_vertex->get_y();
-    double StartZ = StartCl->getPosition(2)-_vertex->get_z();
+    double StartX = StartCl->getPosition(0);//-_vertex->get_x();
+    double StartY = StartCl->getPosition(1);//-_vertex->get_y();
+    double StartZ = StartCl->getPosition(2);//-_vertex->get_z();
     t_seed->stop();
     cluster_find_time += t_seed->elapsed();
     t_seed->restart();
@@ -628,16 +628,16 @@ pair<vector<unordered_set<keylink>>,vector<unordered_set<keylink>>> PHCASeeding:
     transform(ClustersBelow.begin(),ClustersBelow.end(),delta_below.begin(),
       [&](pointKey BelowCandidate){
         TrkrCluster* BelowCl = _cluster_map->findCluster(BelowCandidate.second);
-        return array<double,3>{(BelowCl->getPosition(0)-_vertex->get_x())-StartX,
-          (BelowCl->getPosition(1)-_vertex->get_y())-StartY,
-          (BelowCl->getPosition(2)-_vertex->get_z())-StartZ};});
+        return array<double,3>{BelowCl->getPosition(0)-StartX,
+          BelowCl->getPosition(1)-StartY,
+          BelowCl->getPosition(2)-StartZ};});
 
     transform(ClustersAbove.begin(),ClustersAbove.end(),delta_above.begin(),
       [&](pointKey AboveCandidate){
         TrkrCluster* AboveCl = _cluster_map->findCluster(AboveCandidate.second);
-        return array<double,3>{(AboveCl->getPosition(0)-_vertex->get_x())-StartX,
-          (AboveCl->getPosition(1)-_vertex->get_y())-StartY,
-          (AboveCl->getPosition(2)-_vertex->get_z())-StartZ};});
+        return array<double,3>{AboveCl->getPosition(0)-StartX,
+          AboveCl->getPosition(1)-StartY,
+          AboveCl->getPosition(2)-StartZ};});
     t_seed->stop();
     transform_time += t_seed->elapsed();
     t_seed->restart();
