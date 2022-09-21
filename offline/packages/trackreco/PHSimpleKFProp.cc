@@ -288,7 +288,7 @@ int PHSimpleKFProp::process_event(PHCompositeNode* topNode)
       pretrack.circleFitByTaubin(pretrackClusPositions, 7, 55);
       pretrack.lineFit(pretrackClusPositions, 7, 55);
 
-      new_chains.push_back(PropagateTrack(&pretrack, prepair.second.at(0)
+      new_chains.push_back(PropagateTrack(&pretrack, prepair.second.at(0),
 					  globalPositions));
       timer.stop();
       auto propagatetime = timer.elapsed();
