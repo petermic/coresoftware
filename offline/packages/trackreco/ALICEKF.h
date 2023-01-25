@@ -21,14 +21,14 @@
 #include <utility>
 
 using PositionMap = std::map<TrkrDefs::cluskey, Acts::Vector3>;
-using TrackSeedAliceSeedMap = std::pair<std::vector<TrackSeed_v1>, std::vector<Eigen::Matrix<double,6,6>>>;
+using TrackSeedAliceSeedMap = std::vector<std::pair<TrackSeed_v1,Eigen::Matrix<double,6,6>>>;
 
 class ALICEKF
 {
   public:
   ALICEKF(PHCompositeNode *topNode, 
           TrkrClusterContainer* cmap, 
-	  PHField *B,
+	        PHField *B,
           double fieldDir,
           unsigned int min_clusters,
           double max_sin_phi,
@@ -36,7 +36,6 @@ class ALICEKF
   {
     if(!topNode) std::cout << "no topnode, too bad..." << std::endl;
     _B = B;
-    //    _B = PHFieldUtility::GetFieldMapNode(nullptr,topNode);
     _cluster_map = cmap;
     _fieldDir = fieldDir;
     _max_sin_phi = max_sin_phi;
@@ -50,27 +49,40 @@ class ALICEKF
   explicit ALICEKF(const ALICEKF&) = delete;
   ALICEKF& operator=(const ALICEKF&) = delete;
 
+  // main KF function
   TrackSeedAliceSeedMap ALICEKalmanFilter(const std::vector<std::vector<TrkrDefs::cluskey>>& chains, bool use_nhits_limit, const PositionMap& globalPositions, std::vector<float>& trackChi2) const;
+
+  // encapsulated methods used both here and in propagator
+  bool InitializeSeed(std::vector<TrkrDefs::cluskey> clusters, GPUTPCTrackParam &trackSeed, const PositionMap &globalPositions, int nseeds);
+  bool Transport(GPUTPCTrackParam &trackSeed, float X, float alpha, GPUTPCTrackLinearisation &trackLine, GPUTPCTrackFitParam &fp, int nseeds);
+  bool ConvertToTrackSeedv1(GPUTPCTrackParam &trackSeed, TrackSeed_v1 &track, float phi, int nseeds);
+
+  // utilities mainly used internally, but might be publicly useful
   bool covIsPosDef(Eigen::Matrix<double,6,6>& cov) const;
   void repairCovariance(Eigen::Matrix<double,6,6>& cov) const;
   bool checknan(double val, const std::string &msg, int num) const;
   double get_Bz(double x, double y, double z) const;
+  std::vector<double> GetCircleClusterResiduals(const std::vector<std::pair<double,double>>& pts, double R, double X0, double Y0) const;
+  std::vector<double> GetLineClusterResiduals(const std::vector<std::pair<double,double>>& pts, double A, double B) const; 
+  Eigen::Matrix<float,6,6> TransformCovarianceMatrix(GPUTPCTrackParam &trackSeed, float track_phi);
+  double getClusterError(TrkrCluster* c, TrkrDefs::cluskey key, Acts::Vector3 global, int i, int j) const;
+
+  // setters and getters
   void useConstBField(bool opt) {_use_const_field = opt;}
   void useFixedClusterError(bool opt) {_use_fixed_clus_error = opt;}
   void setFixedClusterError(int i,double val) {_fixed_clus_error.at(i)=val;}
-  double getClusterError(TrkrCluster* c, TrkrDefs::cluskey key, Acts::Vector3 global, int i, int j) const;
-  std::vector<double> GetCircleClusterResiduals(const std::vector<std::pair<double,double>>& pts, double R, double X0, double Y0) const;
-  std::vector<double> GetLineClusterResiduals(const std::vector<std::pair<double,double>>& pts, double A, double B) const; 
-  double get_Bzconst() const { return _Bzconst; }
   void set_cluster_version(int value) { m_cluster_version = value; }
-  ClusterErrorPara *_ClusErrPara;
+  void set_n_transport_steps(int n) {_n_transport_steps = n;}
+  double get_Bzconst() const { return _Bzconst; }
+  int Verbosity() const { return _v; }
+
   private:
+
   PHField* _B = nullptr;
   size_t _min_clusters_per_track = 20;
   TrkrClusterContainer* _cluster_map = nullptr;
-  int Verbosity() const
-  { return _v; }
-  
+  ClusterErrorPara *_ClusErrPara;
+
   int _v = 0;
   double _Bzconst = 10*0.000299792458f;
   double _fieldDir = -1;
@@ -78,6 +90,7 @@ class ALICEKF
   bool _use_const_field = false;
   bool _use_fixed_clus_error = true;
   std::array<double,3> _fixed_clus_error = {.1,.1,.1};
+  int _n_transport_steps = 2;
 
   int m_cluster_version = 4;
 };
