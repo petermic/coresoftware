@@ -57,6 +57,7 @@ using coordKey = std::pair<std::array<float,3>, TrkrDefs::cluskey>;
 using keylink = std::array<coordKey,2>;
 using keylist = std::vector<TrkrDefs::cluskey>;
 using PositionMap = std::map<TrkrDefs::cluskey, Acts::Vector3>;
+using triplet = std::array<coordKey,3>;
 
 class PHCASeeding : public PHTrackSeeding
 {
@@ -67,9 +68,6 @@ class PHCASeeding : public PHTrackSeeding
       unsigned int end_layer = 55,
       unsigned int min_nhits_per_cluster = 0,
       unsigned int min_clusters_per_track = 5,
-      const unsigned int nlayers_maps = 3,
-      const unsigned int nlayers_intt = 4,
-      const unsigned int nlayers_tpc = 48,
       float neighbor_phi_width = .02,
       float neighbor_eta_width = .01,
       float maxSinPhi = 0.999,
@@ -97,12 +95,10 @@ class PHCASeeding : public PHTrackSeeding
   int Setup(PHCompositeNode *topNode) override;
   int Process(PHCompositeNode *topNode) override;
   int InitializeGeometry(PHCompositeNode *topNode);
-  int FindSeedsLayerSkip(double cosTheta_limit);
+//  int FindSeedsLayerSkip(double cosTheta_limit);
   int End() override;
 
  private:
-  
-  enum skip_layers {on, off};
   
   /// tpc distortion correction utility class
   TpcDistortionCorrection m_distortionCorrection;
@@ -115,29 +111,26 @@ class PHCASeeding : public PHTrackSeeding
   Acts::Vector3 getGlobalPosition(TrkrDefs::cluskey, TrkrCluster*) const;
 
   PositionMap FillTree();
-  int FindSeedsWithMerger(const PositionMap&);
-  std::pair<std::vector<std::unordered_set<keylink>>,std::vector<std::unordered_set<keylink>>> CreateLinks(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const;
-  std::vector<std::vector<keylink>> FindBiLinks(const std::vector<std::unordered_set<keylink>>& belowLinks, const std::vector<std::unordered_set<keylink>>& aboveLinks) const;
-  std::vector<keylist> FollowBiLinks(const std::vector<std::vector<keylink>>& bidirectionalLinks, const PositionMap& globalPositions) const;
+  int FindSeeds(const PositionMap&);
+//  std::pair<std::vector<std::unordered_set<keylink>>,std::vector<std::unordered_set<keylink>>> CreateLinks(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const;
+//  std::vector<std::vector<keylink>> FindBiLinks(const std::vector<std::unordered_set<keylink>>& belowLinks, const std::vector<std::unordered_set<keylink>>& aboveLinks) const;
+//  std::vector<keylist> FollowBiLinks(const std::vector<std::vector<keylink>>& bidirectionalLinks, const PositionMap& globalPositions) const;
   void QueryTree(const bgi::rtree<pointKey, bgi::quadratic<16>> &rtree, double phimin, double etamin, double lmin, double phimax, double etamax, double lmax, std::vector<pointKey> &returned_values) const;
-  std::vector<TrackSeed_v1> RemoveBadClusters(const std::vector<keylist>& seeds, const PositionMap& globalPositions) const;
+//  std::vector<TrackSeed_v1> RemoveBadClusters(const std::vector<keylist>& seeds, const PositionMap& globalPositions) const;
+  std::vector<std::set<triplet>> CreateTriplets(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const;
+  std::vector<keylist> ConnectTriplets(const std::vector<std::map<int,triplet>>& triplets, const PositionMap& globalPositions) const;
+  std::vector<TrackSeed_v1> ConvertToSeeds(const std::vector<keylist>& chains, const PositionMap& globalPositions) const;
   double getMengerCurvature(TrkrDefs::cluskey a, TrkrDefs::cluskey b, TrkrDefs::cluskey c, const PositionMap& globalPositions) const;
   
   void publishSeeds(const std::vector<TrackSeed_v1>& seeds);
 
-  //int _nlayers_all;
-  //unsigned int _nlayers_seeding;
-  //std::vector<int> _seeding_layer;
-
-  const unsigned int _nlayers_maps;
-  const unsigned int _nlayers_intt;
-  const unsigned int _nlayers_tpc;
+  const unsigned int _nlayers_maps = 3;
+  const unsigned int _nlayers_intt = 4;
+  const unsigned int _nlayers_tpc = 48;
   unsigned int _start_layer;
   unsigned int _end_layer;
   unsigned int _min_nhits_per_cluster;
   unsigned int _min_clusters_per_track;
-//  float _cluster_z_error;
-//  float _cluster_alice_y_error;
   float _neighbor_phi_width;
   float _neighbor_eta_width;
   float _max_sin_phi;
