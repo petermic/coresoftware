@@ -45,15 +45,16 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <numeric>
 #include <utility>  // for pair, make_pair
 #include <vector>
 #include <algorithm> // for find
-#include <unordered_set>
+#include <set>
+#include <execution>
 #include <memory>
+#include <mutex>
 
 //end
 
@@ -101,6 +102,7 @@ namespace std
     }
   }; 
 }
+
 
 // anonymous namespace for local functions
 namespace
@@ -152,6 +154,8 @@ namespace
     return 2*atan2(sqrt(dx*dx+dy*dy+dz*dz),sqrt(sx*sx+sy*sy+sz*sz));
   }
 
+  std::mutex mtx;
+  std::mutex mtxn;
 }
 
 namespace bg = boost::geometry;
@@ -224,61 +228,70 @@ PositionMap PHCASeeding::FillTree()
   int nlayer[60];
 
   PositionMap cachedPositions;
-
+  t_fill->restart();
   for (int j = 0; j < 60; ++j) nlayer[j] = 0;
-  for(const auto& hitsetkey : _cluster_map->getHitSetKeys(TrkrDefs::TrkrId::tpcId))
-  {
+  const auto hitsetkeys = _cluster_map->getHitSetKeys(TrkrDefs::TrkrId::tpcId);
+  std::for_each( std::execution::par, hitsetkeys.begin(), hitsetkeys.end(), [&](auto hitsetkey)
+  { 
+    mtx.lock();
     auto range = _cluster_map->getClusters(hitsetkey);
-    for( auto clusIter = range.first; clusIter != range.second; ++clusIter )
+    std::vector<std::pair<TrkrDefs::cluskey,TrkrCluster*>> clist;
+    for(auto clusIter = range.first; clusIter != range.second; ++clusIter)
+    {
+      clist.push_back(std::make_pair(clusIter->first,clusIter->second));
+    } 
+    mtx.unlock();
+    for(auto clusIter = clist.begin(); clusIter != clist.end(); ++clusIter)
     {
       TrkrDefs::cluskey ckey = clusIter->first;
       TrkrCluster *cluster = clusIter->second;
       unsigned int layer = TrkrDefs::getLayer(ckey);
       if (layer < _start_layer || layer >= _end_layer)
       {
-	        if(Verbosity()>0) std::cout << "invalid layer: " << layer << " for cluster key " << ckey << std::endl;
-	        continue;
+        if(Verbosity()>0) std::cout << "invalid layer: " << layer << " for cluster key " << ckey << std::endl;
+        continue;
       }
       if(_iteration_map != NULL && _n_iteration >0)
       {
-	      if( _iteration_map->getIteration(ckey) > 0) continue; // skip hits used in a previous iteration
+	if( _iteration_map->getIteration(ckey) > 0) continue; // skip hits used in a previous iteration
       }
 
       // get global position, convert to Acts::Vector3 and store in map
       const Acts::Vector3 globalpos_d = getGlobalPosition(ckey, cluster);
 
       if(Verbosity() > 3)
-	    {
-	      auto global_before = tGeometry->getGlobalPosition(ckey, cluster);
-	      std::cout << "CA Seeder: Cluster: " << ckey << std::endl;
-	      std::cout << " Global before: " << global_before[0] << "  " << global_before[1] << "  " << global_before[2] << std::endl;
-	      std::cout << " Global after   : " << globalpos_d[0] << "  " << globalpos_d[1] << "  " << globalpos_d[2] << std::endl;
-	    }
-
+      {
+        auto global_before = tGeometry->getGlobalPosition(ckey, cluster);
+        std::cout << "CA Seeder: Cluster: " << ckey << std::endl;
+        std::cout << " Global before: " << global_before[0] << "  " << global_before[1] << "  " << global_before[2] << std::endl;
+        std::cout << " Global after   : " << globalpos_d[0] << "  " << globalpos_d[1] << "  " << globalpos_d[2] << std::endl;
+      }
       const Acts::Vector3 globalpos = { globalpos_d.x(), globalpos_d.y(), globalpos_d.z() };
+      mtxn.lock();
       cachedPositions.insert(std::make_pair(ckey, globalpos));
-
+      mtxn.unlock();
       const double clus_phi = get_phi( globalpos );      
-      const double clus_eta = get_eta( globalpos );
-      const double clus_l = layer;  
+      //const double clus_eta = get_eta( globalpos );
+      const double clus_l = layer;
 
       if(Verbosity() > 2) std::cout << "Found cluster " << ckey << " in layer " << layer << std::endl;
       
       std::vector<pointKey> testduplicate;
       QueryTree(_rtree, clus_phi - 0.00001, globalpos(2) - 0.00001, layer - 0.5, clus_phi + 0.00001, globalpos(2) + 0.00001, layer + 0.5, testduplicate);
+      mtx.lock();
       if (!testduplicate.empty())
-	    {
-	      ++n_dupli;
-	      continue;
-	    }
+      {
+        ++n_dupli;
+        continue;
+      }
       ++nlayer[layer];
-      t_fill->restart();
       _rtree.insert(std::make_pair(point(clus_phi, globalpos(2), clus_l), ckey));
-      t_fill->stop();
+      mtx.unlock();
     }
-  }
+  });
+  t_fill->stop();
   if(Verbosity()>1) for (int j = 0; j < 60; ++j) std::cout << "nhits in layer " << j << ":  " << nlayer[j] << std::endl;
-  if(Verbosity()>0) std::cout << "fill time: " << t_fill->get_accumulated_time() / 1000. << " sec" << std::endl;
+  if(Verbosity()>0) std::cout << "fill time: " << t_fill->elapsed() / 1000. << " sec" << std::endl;
   if(Verbosity()>0) std::cout << "number of duplicates : " << n_dupli << std::endl;
   return cachedPositions;
 }
@@ -327,7 +340,7 @@ int PHCASeeding::FindSeeds(const PositionMap& globalPositions)
   if(Verbosity()>1) std::cout << " number of clusters: " << allClusters.size() << std::endl;
   t_seed->restart();
 
-  std::vector<std::set<triplet>> triplets = CreateTriplets(fromPointKey(allClusters), globalPositions);
+  std::vector<std::vector<triplet>> triplets = CreateTriplets(fromPointKey(allClusters), globalPositions);
   std::vector<keylist> trackSeedKeyLists = ConnectTriplets(triplets,globalPositions);
   std::vector<TrackSeed_v1> seeds = ConvertToSeeds(trackSeedKeyLists, globalPositions);
    
@@ -335,9 +348,9 @@ int PHCASeeding::FindSeeds(const PositionMap& globalPositions)
   return seeds.size();
 }
 
-std::vector<std::set<triplet>> PHCASeeding::CreateTriplets(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const
+std::vector<std::vector<triplet>> PHCASeeding::CreateTriplets(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const
 {
-  std::vector<std::set<triplet>> triplets;
+  std::vector<std::vector<triplet>> triplets;
   triplets.resize(_nlayers_tpc);
 
   double triplet_time = 0.;
@@ -436,7 +449,9 @@ std::vector<std::set<triplet>> PHCASeeding::CreateTriplets(const std::vector<coo
         if(cos(angle) < maxCosPlaneAngle)
         {
           int layer_index = StartLayer - (_nlayers_intt + _nlayers_maps);
-          triplets[layer_index].insert({ fromPointKey(ClustersBelow[iBelow]), StartCluster, fromPointKey(ClustersAbove[iAbove]) });
+          mtx.lock();
+          triplets[layer_index].push_back({ fromPointKey(ClustersBelow[iBelow]), StartCluster, fromPointKey(ClustersAbove[iAbove]) });
+          mtx.unlock();
         }
       }
     }
@@ -471,7 +486,7 @@ double PHCASeeding::getMengerCurvature(TrkrDefs::cluskey a, TrkrDefs::cluskey b,
   return 2*sin(break_angle)/hypot_length;
 }
 
-std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int,triplet>>& triplets, const PositionMap& globalPositions) const
+std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::vector<triplet>>& triplets, const PositionMap& globalPositions) const
 {
 /*
   // follow bidirectional links to form lists of cluster keys
@@ -528,33 +543,119 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
 
   // std::cout << "STARTING SEED ASSEMBLY" << std::endl;
 */
-  std::set<keylist> trackSeedKeyLists;
-  std::set<keylist> tempSeedKeyLists;
+  t_seed->stop();
+  t_seed->restart();
+  std::vector<keylist> trackSeedKeyLists;
+  std::vector<keylist> tempSeedKeyLists;
   for(auto& layer : triplets)
   {
     for(auto& trp : layer)
     {
-      tempSeedKeyLists.insert({trp[0].second, trp[1].second, trp[2].second});
+      tempSeedKeyLists.push_back({trp[0].second, trp[1].second, trp[2].second});
     }
   }
 //  std::vector<keylist> tempSeedKeyLists = trackSeedKeyLists;
 //  trackSeedKeyLists.clear();
 
+  for(int layer_idx = 0; layer_idx<triplets.size(); layer_idx++)
+  {
+    if(Verbosity()>0) std::cout << "temp size: " << tempSeedKeyLists.size() << std::endl;
+    if(Verbosity()>0) std::cout << "final size: " << trackSeedKeyLists.size() << std::endl;
+    std::vector<keylist> newTempSeedKeyLists;
+    std::vector<bool> usedTriplet;
+    std::vector<triplet> triplets_thislayer = triplets[layer_idx];
+
+    usedTriplet.resize(triplets_thislayer.size());
+    std::fill(usedTriplet.begin(),usedTriplet.end(),false);
+
+    std::for_each( std::execution::par, tempSeedKeyLists.begin(), tempSeedKeyLists.end(), [&](keylist seed)
+    {
+      bool no_next_link = true;
+      TrkrDefs::cluskey lastCluster = seed.back();
+      TrkrDefs::cluskey secondLastCluster = seed.rbegin()[1];
+      for(int trp_idx = 0; trp_idx<triplets_thislayer.size(); trp_idx++)
+      {
+        triplet trp = triplets_thislayer[trp_idx];
+        if(trp[1].second != lastCluster || trp[0].second != secondLastCluster) continue;
+        auto last_pos = globalPositions.at(lastCluster);
+        auto secondlast_pos = globalPositions.at(secondLastCluster);
+        float x1 = last_pos.x();
+        float y1 = last_pos.y();
+        float z1 = last_pos.z();
+        float x2 = secondlast_pos.x();
+        float y2 = secondlast_pos.y();
+        float z2 = secondlast_pos.z();
+        float dr_12 = sqrt(x1*x1+y1*y1)-sqrt(x2*x2+y2*y2);
+        auto& test_pos = globalPositions.at(trp[2].second);
+        float xt = test_pos.x();
+        float yt = test_pos.y();
+        float zt = test_pos.z();
+        float new_dr = sqrt(xt*xt+yt*yt)-sqrt(x1*x1+y1*y1);
+        if(fabs( (z1-z2)/dr_12 - (zt-z1)/new_dr )>0.5) continue;
+        auto& third_pos = globalPositions.at(seed.rbegin()[2]);
+        float x3 = third_pos.x();
+        float y3 = third_pos.y();
+        float dr_23 = sqrt(x2*x2+y2*y2)-sqrt(x3*x3+y3*y3);
+        float phi1 = atan2(y1,x1);
+        float phi2 = atan2(y2,x2);
+        float phi3 = atan2(y3,x3);
+        float dphi12 = std::fmod(phi1-phi2,M_PI);
+        float dphi23 = std::fmod(phi2-phi3,M_PI);
+        float d2phidr2 = dphi12/(dr_12*dr_12)-dphi23/(dr_23*dr_23);
+        float new_dphi = std::fmod(atan2(yt,xt)-atan2(y1,x1),M_PI);
+        float new_d2phidr2 = new_dphi/(new_dr*new_dr)-dphi12/(dr_12*dr_12);
+        if(fabs(d2phidr2-new_d2phidr2)<.005)
+        {
+          no_next_link = false;
+          keylist newseed = seed;
+          newseed.push_back(trp[2].second);
+          mtxn.lock();
+          newTempSeedKeyLists.push_back(newseed);
+          mtxn.unlock();
+          usedTriplet[trp_idx] = true;
+        }
+      }
+      if(no_next_link && seed.size()>5)
+      {
+        mtx.lock();
+        trackSeedKeyLists.push_back(seed);
+        mtx.unlock();
+      }
+         
+    });
+
+    for(int trp_idx = 0; trp_idx<triplets_thislayer.size(); trp_idx++)
+    {
+      if(!usedTriplet[trp_idx])
+      {
+        triplet trp = triplets_thislayer[trp_idx];
+        keylist tkeys;
+        tkeys.push_back(trp[0].second);
+        tkeys.push_back(trp[1].second);
+        tkeys.push_back(trp[2].second);
+        newTempSeedKeyLists.push_back(tkeys);
+      }
+    }
+    if(Verbosity()>0) std::cout << "new temp size: " << newTempSeedKeyLists.size() << std::endl;
+    tempSeedKeyLists = newTempSeedKeyLists;
+  }
+/*
   while(tempSeedKeyLists.size()>0)
   {
     if(Verbosity()>0) std::cout << "temp size: " << tempSeedKeyLists.size() << std::endl;
     if(Verbosity()>0) std::cout << "final size: " << trackSeedKeyLists.size() << std::endl;
-    std::set<keylist> newtempSeedKeyLists;
-    std::for_each(std::execution::par, tempSeedKeyLists.begin(), tempSeedKeyLists.end(), [&](keylist seed)
+    std::vector<keylist> newtempSeedKeyLists;
+    std::for_each( std::execution::par, tempSeedKeyLists.begin(), tempSeedKeyLists.end(), [&](keylist seed)
     {
       TrkrDefs::cluskey trackHead = seed.back();
       unsigned int trackHead_layer = TrkrDefs::getLayer(trackHead)-(_nlayers_intt+_nlayers_maps);
+      if(trackHead_layer==_nlayers_tpc-1) return;
       bool no_next_link = true;
       for(auto& trp : triplets[trackHead_layer])
       {
-        if(trp[0].second != trackHead) return;
-        if(trp[1].second != seed.rbegin()[1]) return;
-/*
+        if(trp[1].second != trackHead) continue;
+        if(trp[0].second != seed.rbegin()[1]) continue;
+
         auto& head_pos = globalPositions.at(trackHead);
         auto& prev_pos = globalPositions.at(seed.rbegin()[1]);
         float x1 = head_pos.x();
@@ -564,7 +665,7 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
         float y2 = prev_pos.y();
         float z2 = prev_pos.z();
         float dr_12 = sqrt(x1*x1+y1*y1)-sqrt(x2*x2+y2*y2);
-        TrkrDefs::cluskey testCluster = link[1].second;
+        TrkrDefs::cluskey testCluster = trp[2].second;
         auto& test_pos = globalPositions.at(testCluster);
         float xt = test_pos.x();
         float yt = test_pos.y();
@@ -583,18 +684,22 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
         float d2phidr2 = dphi12/(dr_12*dr_12)-dphi23/(dr_23*dr_23);
         float new_dphi = std::fmod(atan2(yt,xt)-atan2(y1,x1),M_PI);
         float new_d2phidr2 = new_dphi/(new_dr*new_dr)-dphi12/(dr_12*dr_12);
-*/
-        //if(seed.size()<6 && fabs(d2phidr2-new_d2phidr2)<.005)
+
+        if(fabs(d2phidr2-new_d2phidr2)<.005)
         {
           no_next_link = false;
           keylist newseed = seed;
           newseed.push_back(trp[2].second);
-          newtempSeedKeyLists.insert(newseed);
+          mtxn.lock();
+          newtempSeedKeyLists.push_back(newseed);
+          mtxn.unlock();
         }
       }
-      if(no_next_link)
+      if(no_next_link && seed.size()>5)
       {
-        trackSeedKeyLists.insert(seed);
+        mtx.lock();
+        trackSeedKeyLists.push_back(seed);
+        mtx.unlock();
       }
     });
     if(Verbosity()>0) std::cout << "new temp size: " << newtempSeedKeyLists.size() << std::endl;
@@ -603,7 +708,7 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
 
 
 //  trackSeedKeyLists = tempSeedKeyLists;
-/*
+
   for(auto trackKeyChain = trackSeedKeyLists.begin(); trackKeyChain != trackSeedKeyLists.end(); ++trackKeyChain)
   {
     bool reached_end = false;
@@ -657,7 +762,7 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
   }
 */
   t_seed->stop();
-  if(Verbosity()>0) std::cout << "keychain assembly time: " << t_seed->elapsed_time() / 1000 << " s" << std::endl;
+  if(Verbosity()>0) std::cout << "keychain assembly time: " << t_seed->elapsed() / 1000 << " s" << std::endl;
   t_seed->restart();
   if(Verbosity()>0) std::cout << "track key chains assembled: " << trackSeedKeyLists.size() << std::endl;
   if(Verbosity()>2)
@@ -668,13 +773,14 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
       std::cout << " " << trackKeyChain->size() << std::endl;
     }
   }
+/*
   int jumpcount = 0;
   if(Verbosity()>1)
   {
     std::cout << " track key associations:" << std::endl;
     for(size_t i=0;i<trackSeedKeyLists.size();++i)
     {
-      std::cout << " seed " << i << ":" << std::endl);
+      std::cout << " seed " << i << ":" << std::endl;
 
       double lasteta = -100;
       double lastphi = -100;
@@ -692,7 +798,7 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
            ++jumpcount;
         }
         std::cout << " (eta,phi,layer) = (" << clus_eta << "," << clus_phi << "," << lay << ") " <<
-          " (x,y,z) = (" << globalpos(0) << "," << globalpos(1) << "," << globalpos(2) << ")" << std::endl);
+          " (x,y,z) = (" << globalpos(0) << "," << globalpos(1) << "," << globalpos(2) << ")" << std::endl;
       }
       lasteta = clus_eta;
       lastphi = clus_phi;
@@ -700,10 +806,25 @@ std::vector<keylist> PHCASeeding::ConnectTriplets(const std::vector<std::map<int
     std::cout << " Total large jumps: " << jumpcount << std::endl;
   }
   t_seed->stop();
-  if(Verbosity()>0) std::cout << "eta-phi sanity check time: " << t_seed->elapsed_time() / 1000 << " s" << std::endl;
+  if(Verbosity()>0) std::cout << "eta-phi sanity check time: " << t_seed->elapsed() / 1000 << " s" << std::endl;
   t_seed->restart();
+*/
   std::vector<keylist> final_keylists;
-  final_keylists.insert(trackSeedKeyLists.begin(),trackSeedKeyLists.end());
+  if(Verbosity()>2) std::cout << "SEED LIST" << std::endl;
+  for(auto& kl : trackSeedKeyLists)
+  {
+    if(Verbosity()>2)
+    {
+      for(auto& c : kl)
+      {
+        const auto& globalpos = globalPositions.at(c);
+        const unsigned int layer = TrkrDefs::getLayer(c);
+        std::cout << "layer " << layer << ", (x, y, z)=(" << globalpos(0) << ", " << globalpos(1) << ", " << globalpos(2) << ")" << std::endl;
+      }
+      std::cout << "----------------" << std::endl;
+    }
+    final_keylists.push_back(kl);
+  }
   return final_keylists;
 }
 
@@ -711,7 +832,7 @@ std::vector<TrackSeed_v1> PHCASeeding::ConvertToSeeds(const std::vector<keylist>
 {
   if(Verbosity()>0) std::cout << "removing bad clusters" << std::endl;
   std::vector<TrackSeed_v1> clean_chains;
-/*
+
   for(const auto& chain : chains)
   {
     if(chain.size()<3) continue;
@@ -734,19 +855,21 @@ std::vector<TrackSeed_v1> PHCASeeding::ConvertToSeeds(const std::vector<keylist>
     const std::vector<double> xy_resid = fitter->GetCircleClusterResiduals(xy_pts,R,X0,Y0);
     
     // assign clusters to seed
-    //TrackSeed_v1 trackseed;
+    TrackSeed_v1 trackseed;
     for(size_t i=0;i<chain.size();i++)
     {
       //if(xy_resid[i]>_xy_outlier_threshold) continue;
-      //trackseed.insert_cluster_key(chain.at(i));
+      trackseed.insert_cluster_key(chain.at(i));
     }
+    trackseed.set_X0(X0);
+    trackseed.set_Y0(Y0);
 
     clean_chains.push_back(trackseed);
     if(Verbosity()>0) std::cout << "pushed clean chain with " << trackseed.size_cluster_keys() << " clusters" << std::endl;
   }
-*/
-  std::vector<float> chi2;
-  clean_chains = fitter->ALICEKalmanFilter(chains,false,globalPositions,chi2);
+
+//  std::vector<float> chi2;
+//  clean_chains = fitter->ALICEKalmanFilter(chains,false,globalPositions,chi2);
   return clean_chains;
 }
 

@@ -35,10 +35,8 @@
 #include <cstdint>  // for uint64_t
 #include <map>       // for map
 #include <memory>
-#include <set>
 #include <string>    // for string
 #include <utility>   // for pair
-#include <unordered_set>
 #include <vector>    // for vector
 
 class PHCompositeNode;  
@@ -117,8 +115,8 @@ class PHCASeeding : public PHTrackSeeding
 //  std::vector<keylist> FollowBiLinks(const std::vector<std::vector<keylink>>& bidirectionalLinks, const PositionMap& globalPositions) const;
   void QueryTree(const bgi::rtree<pointKey, bgi::quadratic<16>> &rtree, double phimin, double etamin, double lmin, double phimax, double etamax, double lmax, std::vector<pointKey> &returned_values) const;
 //  std::vector<TrackSeed_v1> RemoveBadClusters(const std::vector<keylist>& seeds, const PositionMap& globalPositions) const;
-  std::vector<std::set<triplet>> CreateTriplets(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const;
-  std::vector<keylist> ConnectTriplets(const std::vector<std::map<int,triplet>>& triplets, const PositionMap& globalPositions) const;
+  std::vector<std::vector<triplet>> CreateTriplets(const std::vector<coordKey>& clusters, const PositionMap& globalPositions) const;
+  std::vector<keylist> ConnectTriplets(const std::vector<std::vector<triplet>>& triplets, const PositionMap& globalPositions) const;
   std::vector<TrackSeed_v1> ConvertToSeeds(const std::vector<keylist>& chains, const PositionMap& globalPositions) const;
   double getMengerCurvature(TrkrDefs::cluskey a, TrkrDefs::cluskey b, TrkrDefs::cluskey c, const PositionMap& globalPositions) const;
   

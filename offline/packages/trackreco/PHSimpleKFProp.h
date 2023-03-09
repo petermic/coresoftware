@@ -59,6 +59,8 @@ class PHSimpleKFProp : public SubsysReco
   { _use_truth_clusters = truth; }
   void SetIteration(int iter){_n_iteration = iter;}
   void set_cluster_version(int value) { m_cluster_version = value; }
+  int Verbosity() const { return _v; }
+  void Verbosity(int n) { _v = n; }
 
  private:
 
@@ -107,7 +109,9 @@ class PHSimpleKFProp : public SubsysReco
 
   PositionMap PrepareKDTrees();
 
-  std::vector<TrkrDefs::cluskey> PropagateTrack(TrackSeed_v1* track, Eigen::Matrix<float,6,6>& xyzCov, const PositionMap& globalPositions) const;
+  std::vector<TrkrDefs::cluskey> PropagateTrack(TrackSeed* track, Eigen::Matrix<float,6,6>& xyzCov, const PositionMap& globalPositions, size_t id) const;
+  bool PropagateStep(std::vector<TrkrDefs::cluskey>& propagated_track, std::vector<unsigned int>& layers, unsigned int layer,
+      GPUTPCTrackParam& kftrack, GPUTPCTrackLinearisation& kfline, GPUTPCTrackParam::GPUTPCTrackFitParam& fp, float& phi, const PositionMap& globalPositions, size_t id) const;
   std::vector<std::vector<TrkrDefs::cluskey>> RemoveBadClusters(const std::vector<std::vector<TrkrDefs::cluskey>>& seeds, const PositionMap& globalPositions) const;
   template <typename T>
   struct KDPointCloud
@@ -147,6 +151,7 @@ class PHSimpleKFProp : public SubsysReco
   void publishSeeds(std::vector<TrackSeed_v1>& seeds, PositionMap &positions);
   void publishSeeds(const std::vector<TrackSeed_v1>&);
 
+  int _v = 0;
   bool _use_const_field = false;
   bool _use_fixed_clus_err = false;
   std::array<float,3> _fixed_clus_err = {.1,.1,.1};
