@@ -312,7 +312,7 @@ Acts::Vector3 PHSimpleKFProp::getGlobalPosition( TrkrDefs::cluskey key, TrkrClus
 PositionMap PHSimpleKFProp::PrepareKDTrees()
 {
   PositionMap globalPositions;
-  std::vector<std::vector<std::vector<float> > > kdhits;
+  std::vector<std::vector<std::vector<double> > > kdhits;
   kdhits.resize(58);
   if (!_cluster_map)
   {
@@ -341,7 +341,7 @@ PositionMap PHSimpleKFProp::PrepareKDTrees()
       globalPositions.insert(std::make_pair(cluskey, globalpos));
 
       int layer = TrkrDefs::getLayer(cluskey);
-      std::vector<float> kdhit(4);
+      std::vector<double> kdhit(4);
       kdhit[0] = globalpos_d.x();
       kdhit[1] = globalpos_d.y();
       kdhit[2] = globalpos_d.z();
@@ -361,7 +361,7 @@ PositionMap PHSimpleKFProp::PrepareKDTrees()
   for(size_t l=0;l<kdhits.size();++l)
   {
     if(Verbosity()>0) std::cout << "l: " << l << std::endl;
-    _ptclouds[l] = std::make_shared<KDPointCloud<float>>();
+    _ptclouds[l] = std::make_shared<KDPointCloud<double>>();
     _ptclouds[l]->pts.resize(kdhits[l].size());
     if(Verbosity()>0) std::cout << "resized to " << kdhits[l].size() << std::endl;
     for(size_t i=0;i<kdhits[l].size();++i)
@@ -707,7 +707,7 @@ bool PHSimpleKFProp::PropagateStep(std::vector<TrkrDefs::cluskey>& propagated_tr
       std::cout << id << ": solid_angle_dist: " << atan2(sqrt(distance_out[0]),radii[layer-7]) << std::endl;
     }
     if(n_results==0) return true;
-    std::vector<float> point = _ptclouds[layer]->pts[index_out[0]];
+    std::vector<double> point = _ptclouds[layer]->pts[index_out[0]];
     next_ckey = (*((int64_t*)&point[3]));
     
     nc = _cluster_map->findCluster(next_ckey);

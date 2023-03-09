@@ -144,8 +144,8 @@ class PHSimpleKFProp : public SubsysReco
       return false;
     }
   };
-  std::vector<std::shared_ptr<KDPointCloud<float>>> _ptclouds;
-  std::vector<std::shared_ptr<nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, KDPointCloud<float>>, KDPointCloud<float>,3>>> _kdtrees;
+  std::vector<std::shared_ptr<KDPointCloud<double>>> _ptclouds;
+  std::vector<std::shared_ptr<nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<double, KDPointCloud<double>>, KDPointCloud<double>,3>>> _kdtrees;
   std::unique_ptr<ALICEKF> fitter;
   float get_Bz(float x, float y, float z) const;
   void publishSeeds(std::vector<TrackSeed_v1>& seeds, PositionMap &positions);
