@@ -133,6 +133,7 @@ bool ALICEKF::InitializeSeed(const keylist& clusters, GPUTPCTrackParam& trackSee
   // first alice y is 0 by definition
   const float init_DzDs = -delta_z / sqrt(square(delta_alice_x) + square(second_alice_y));
   trackSeed.SetSinPhi(init_SinPhi);
+  trackSeed.SetSignCosPhi(1);
   trackSeed.SetDzDs(init_DzDs);
   if(Verbosity()>0)
   {

@@ -45,16 +45,16 @@ class PHSimpleKFProp : public SubsysReco
   int process_event(PHCompositeNode *topNode) override;
   int End(PHCompositeNode *topNode) override;
 
-  void set_field_dir(const double rescale)
+  void set_field_dir(const float rescale)
   {
     _fieldDir = 1;
     if(rescale > 0)
       { _fieldDir = -1; }
   }
-  void set_max_window(double s){_max_dist = s;}
+  void set_max_window(float s){_max_dist = s;}
   void useConstBField(bool opt){_use_const_field = opt;}
   void useFixedClusterError(bool opt){_use_fixed_clus_err = opt;}
-  void setFixedClusterError(int i, double val){_fixed_clus_err.at(i) = val;}
+  void setFixedClusterError(int i, float val){_fixed_clus_err.at(i) = val;}
   void use_truth_clusters(bool truth)
   { _use_truth_clusters = truth; }
   void SetIteration(int iter){_n_iteration = iter;}
@@ -69,22 +69,22 @@ class PHSimpleKFProp : public SubsysReco
   
   /// fetch node pointers
   int get_nodes(PHCompositeNode *topNode);
-  std::vector<double> radii;
-  std::vector<double> _vertex_x;
-  std::vector<double> _vertex_y;
-  std::vector<double> _vertex_z;
-  std::vector<double> _vertex_xerr;
-  std::vector<double> _vertex_yerr;
-  std::vector<double> _vertex_zerr;
-  std::vector<double> _vertex_ids;
-  double _Bzconst = 10*0.000299792458f;
-  //double _Bz = 1.4*_Bzconst;
-  double _max_dist = .05;
+  std::vector<float> radii;
+  std::vector<float> _vertex_x;
+  std::vector<float> _vertex_y;
+  std::vector<float> _vertex_z;
+  std::vector<float> _vertex_xerr;
+  std::vector<float> _vertex_yerr;
+  std::vector<float> _vertex_zerr;
+  std::vector<float> _vertex_ids;
+  float _Bzconst = 10*0.000299792458f;
+  //float _Bz = 1.4*_Bzconst;
+  float _max_dist = .05;
   size_t _min_clusters_per_track = 3;
-  double _fieldDir = -1;
-  double _max_sin_phi = 1.;
-  double _rz_outlier_threshold = .1;
-  double _xy_outlier_threshold = .1;
+  float _fieldDir = -1;
+  float _max_sin_phi = 1.;
+  float _rz_outlier_threshold = .1;
+  float _xy_outlier_threshold = .1;
 
   TrkrClusterContainer *_cluster_map = nullptr;
 
@@ -107,7 +107,7 @@ class PHSimpleKFProp : public SubsysReco
 
   PositionMap PrepareKDTrees();
 
-  std::vector<TrkrDefs::cluskey> PropagateTrack(TrackSeed* track, Eigen::Matrix<double,6,6>& xyzCov, const PositionMap& globalPositions) const;
+  std::vector<TrkrDefs::cluskey> PropagateTrack(TrackSeed_v1* track, Eigen::Matrix<float,6,6>& xyzCov, const PositionMap& globalPositions) const;
   std::vector<std::vector<TrkrDefs::cluskey>> RemoveBadClusters(const std::vector<std::vector<TrkrDefs::cluskey>>& seeds, const PositionMap& globalPositions) const;
   template <typename T>
   struct KDPointCloud
@@ -140,17 +140,16 @@ class PHSimpleKFProp : public SubsysReco
       return false;
     }
   };
-  std::vector<std::shared_ptr<KDPointCloud<double>>> _ptclouds;
-  std::vector<std::shared_ptr<nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<double, KDPointCloud<double>>, KDPointCloud<double>,3>>> _kdtrees;
+  std::vector<std::shared_ptr<KDPointCloud<float>>> _ptclouds;
+  std::vector<std::shared_ptr<nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, KDPointCloud<float>>, KDPointCloud<float>,3>>> _kdtrees;
   std::unique_ptr<ALICEKF> fitter;
-  double get_Bz(double x, double y, double z) const;
+  float get_Bz(float x, float y, float z) const;
   void publishSeeds(std::vector<TrackSeed_v1>& seeds, PositionMap &positions);
   void publishSeeds(const std::vector<TrackSeed_v1>&);
-//   void MoveToVertex();
 
   bool _use_const_field = false;
   bool _use_fixed_clus_err = false;
-  std::array<double,3> _fixed_clus_err = {.1,.1,.1};
+  std::array<float,3> _fixed_clus_err = {.1,.1,.1};
   TrkrClusterIterationMapv1* _iteration_map = nullptr;
   int _n_iteration = 0;
 

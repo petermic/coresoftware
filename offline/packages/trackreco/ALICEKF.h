@@ -53,9 +53,9 @@ class ALICEKF
   TrackSeedAliceSeedMap ALICEKalmanFilter(const std::vector<std::vector<TrkrDefs::cluskey>>& chains, bool use_nhits_limit, const PositionMap& globalPositions, std::vector<float>& trackChi2) const;
 
   // encapsulated methods used both here and in propagator
-  bool InitializeSeed(const std::vector<TrkrDefs::cluskey> &clusters, GPUTPCTrackParam &trackSeed, const PositionMap &globalPositions, int nseeds) const;
-  bool Transport(GPUTPCTrackParam &trackSeed, float nextAlice_x, float newPhi, float alpha, GPUTPCTrackLinearisation &trackLine, GPUTPCTrackParam::GPUTPCTrackFitParam &fp, int nseeds) const;
-  bool ConvertToTrackSeedv1(GPUTPCTrackParam &trackSeed, const std::vector<TrkrDefs::cluskey> &trackKeyChain, TrackSeed_v1 &track, float phi, const PositionMap& globalPositions, int nseeds) const;
+  bool InitializeSeed(const std::vector<TrkrDefs::cluskey> &clusters, GPUTPCTrackParam &trackSeed, const PositionMap &globalPositions, int nseeds=0) const;
+  bool Transport(GPUTPCTrackParam &trackSeed, float nextAlice_x, float newPhi, float alpha, GPUTPCTrackLinearisation &trackLine, GPUTPCTrackParam::GPUTPCTrackFitParam &fp, int nseeds=0) const;
+  bool ConvertToTrackSeedv1(GPUTPCTrackParam &trackSeed, const std::vector<TrkrDefs::cluskey> &trackKeyChain, TrackSeed_v1 &track, float phi, const PositionMap& globalPositions, int nseeds=0) const;
 
   // utilities mainly used internally, but might be publicly useful
   bool covIsPosDef(Eigen::Matrix<float,6,6>& cov) const;
@@ -64,7 +64,7 @@ class ALICEKF
   double get_Bz(double x, double y, double z) const;
   std::vector<double> GetCircleClusterResiduals(const std::vector<std::pair<double,double>>& pts, double R, double X0, double Y0) const;
   std::vector<double> GetLineClusterResiduals(const std::vector<std::pair<double,double>>& pts, double A, double B) const; 
-  Eigen::Matrix<float,6,6> TransformCovarianceMatrix(GPUTPCTrackParam &trackSeed, float track_phi, int nseeds) const;
+  Eigen::Matrix<float,6,6> TransformCovarianceMatrix(GPUTPCTrackParam &trackSeed, float track_phi, int nseeds=0) const;
   float getClusterError(TrkrCluster* c, TrkrDefs::cluskey key, Acts::Vector3 global, int i, int j) const;
 
   // setters and getters
