@@ -96,20 +96,21 @@ int PHSimpleKFProp::InitRun(PHCompositeNode* topNode)
   fitter = std::make_unique<ALICEKF>(topNode,_cluster_map,_field_map.get(), _fieldDir,
 				     _min_clusters_per_track,_max_sin_phi,Verbosity());
   fitter->useConstBField(_use_const_field);
-  fitter->setConstBField(_const_field);
   fitter->useFixedClusterError(_use_fixed_clus_err);
+  fitter->set_cluster_version( m_cluster_version );
+  std::cout << "simple kf cluster version " << m_cluster_version << std::endl;
   fitter->setFixedClusterError(0,_fixed_clus_err.at(0));
   fitter->setFixedClusterError(1,_fixed_clus_err.at(1));
   fitter->setFixedClusterError(2,_fixed_clus_err.at(2));
   //  _field_map = PHFieldUtility::GetFieldMapNode(nullptr,topNode);
   // m_Cache = magField->makeCache(m_tGeometry->magFieldContext);
- 
+  std::cout << "done init " << m_cluster_version << std::endl;
   return Fun4AllReturnCodes::EVENT_OK;
 }
 
 double PHSimpleKFProp::get_Bz(double x, double y, double z) const
 {
-  if(_use_const_field) return _const_field;
+  if(_use_const_field) return 1.4;
   double p[4] = {x*cm,y*cm,z*cm,0.*cm};
   double bfield[3];
   _field_map->GetFieldValue(p,bfield);
@@ -334,15 +335,15 @@ int PHSimpleKFProp::process_event(PHCompositeNode* topNode)
   publishSeeds(unused_tracks);
 
   /// Remove tracks that are duplicates from the KFProp
-  PHGhostRejection rejector(Verbosity());
-  rejector.positionMap(globalPositions);
-  rejector.trackSeedContainer(_track_map);
-  timer.stop();
-  timer.restart();
-  rejector.rejectGhostTracks(trackChi2);
-  timer.stop();
-  if(Verbosity() > 2)
-    { std::cout << "ghost rejection time " << timer.elapsed() << std::endl; }
+  //PHGhostRejection rejector(Verbosity());
+  //rejector.positionMap(globalPositions);
+  //rejector.trackSeedContainer(_track_map);
+  //timer.stop();
+  //timer.restart();
+  //rejector.rejectGhostTracks(trackChi2);
+  //timer.stop();
+  //if(Verbosity() > 2)
+  //  { std::cout << "ghost rejection time " << timer.elapsed() << std::endl; }
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
@@ -446,23 +447,9 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
 
   if(Verbosity()>0) std::cout << "track (x,y,z) = (" << track_x << ", " << track_y << ", " << track_z << ")" << std::endl;
 
-  double track_px = NAN;
-  double track_py = NAN;
-  double track_pz = NAN;
-  if(_use_const_field)
-    {
-      float pt = fabs(1./track->get_qOverR()) * (0.3/100) * _const_field;
-      float phi = track->get_phi(_cluster_map, _tgeometry);
-      track_px = pt * std::cos(phi);
-      track_py = pt * std::sin(phi);
-      track_pz = pt * std::cosh(track->get_eta()) * std::cos(track->get_theta());
-    }
-  else
-    {
-      track_px = track->get_px(_cluster_map,_tgeometry);
-      track_py = track->get_py(_cluster_map,_tgeometry);
-      track_pz = track->get_pz();
-    }
+  double track_px = track->get_px(_cluster_map,_tgeometry);
+  double track_py = track->get_py(_cluster_map,_tgeometry);
+  double track_pz = track->get_pz();
 
   if(Verbosity()>0) std::cout << "track (px,py,pz) = (" << track_px << ", " << track_py << ", " << track_pz << ")" << std::endl;
 
@@ -865,12 +852,14 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       double cyerr = sqrt(fitter->getClusterError(cc,closest_ckey,ccglob,1,1));
       double czerr = sqrt(fitter->getClusterError(cc,closest_ckey,ccglob,2,2));
       double ccphi = atan2(ccY,ccX);
+      unsigned int ccl = TrkrDefs::getLayer(closest_ckey);
       if(Verbosity()>0) std::cout << "cluster position: (" << ccX << ", " << ccY << ", " << ccZ << ")" << std::endl;
       if(Verbosity()>0) std::cout << "cluster position error: (" << cxerr << ", " << cyerr << ", " << czerr << ")" << std::endl;
       if(Verbosity()>0) std::cout << "cluster X: " << ccX*cos(ccphi)+ccY*sin(ccphi) << std::endl;
       if(fabs(tx-ccX)<_max_dist*sqrt(txerr*txerr+cxerr*cxerr) &&
          fabs(ty-ccY)<_max_dist*sqrt(tyerr*tyerr+cyerr*cyerr) &&
-         fabs(tz-ccZ)<_max_dist*sqrt(tzerr*tzerr+czerr*czerr))
+         fabs(tz-ccZ)<_max_dist*sqrt(tzerr*tzerr+czerr*czerr) &&
+         ccl != 23 && ccl != 39)
       {
         propagated_track.push_back(closest_ckey);
         layers.push_back(TrkrDefs::getLayer(closest_ckey));
@@ -1104,9 +1093,11 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       if(Verbosity()>0) std::cout << "cluster position errors: (" << cxerr << ", " << cyerr << ", " << czerr << ")" << std::endl;
       if(Verbosity()>0) std::cout << "cluster X: " << ccX*cos(ccphi)+ccY*sin(ccphi) << std::endl;
       double alpha2 = ccphi-old_phi;
+      unsigned int ccl = TrkrDefs::getLayer(closest_ckey);
       if(fabs(tx-ccX)<_max_dist*sqrt(txerr*txerr+cxerr*cxerr) &&
          fabs(ty-ccY)<_max_dist*sqrt(tyerr*tyerr+cyerr*cyerr) &&
-         fabs(tz-ccZ)<_max_dist*sqrt(tzerr*tzerr+czerr*czerr))
+         fabs(tz-ccZ)<_max_dist*sqrt(tzerr*tzerr+czerr*czerr) &&
+         ccl != 23 && ccl != 39)
       {
         propagated_track.push_back(closest_ckey);
         layers.push_back(TrkrDefs::getLayer(closest_ckey));
@@ -1162,11 +1153,11 @@ std::vector<keylist> PHSimpleKFProp::RemoveBadClusters(const std::vector<keylist
 
     //fit a circle through x,y coordinates and calculate residuals
     const auto [R, X0, Y0] = TrackFitUtils::circle_fit_by_taubin( xy_pts );
-    const std::vector<double> xy_resid = TrackFitUtils::getCircleClusterResiduals(xy_pts,R,X0,Y0);
+    const std::vector<double> xy_resid = fitter->GetCircleClusterResiduals(xy_pts,R,X0,Y0);
 
     // fit a line through r,z coordinates and calculate residuals
     const auto [A, B] = TrackFitUtils::line_fit( rz_pts );
-    const std::vector<double> rz_resid = TrackFitUtils::getLineClusterResiduals(rz_pts,A,B);
+    const std::vector<double> rz_resid = fitter->GetLineClusterResiduals(rz_pts,A,B);
     
     for(size_t i=0;i<chain.size();i++)
     {
@@ -1187,11 +1178,13 @@ void PHSimpleKFProp::publishSeeds(std::vector<TrackSeed_v1>& seeds, PositionMap&
   { 
     /// The ALICEKF gives a better charge determination at high pT
     int q = seed.get_charge();
+   
     seed.circleFitByTaubin(_cluster_map, _tgeometry, 7, 55);
     seed.lineFit(_cluster_map,_tgeometry, 7, 55);
-    
+
     seed.set_qOverR(fabs(seed.get_qOverR()) * q);
     _track_map->insert(&seed); 
+
   }
 }
 
