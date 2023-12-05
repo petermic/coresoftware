@@ -182,6 +182,11 @@ int PHSimpleKFProp::get_nodes(PHCompositeNode* topNode)
 
 int PHSimpleKFProp::process_event(PHCompositeNode* topNode)
 {
+  if(_generate_diagnostics)
+  {
+    _diagnostic_file = new TFile("PHSimpleKFProp_diagnostics.root","RECREATE");
+    _diagnostic_ntuple = new TNtuple("T","T","trackID:step:layer:has_cluster:proj_x:proj_y:proj_z:proj_sigma_x:proj_sigma_y:proj_sigma_z:cluster_x:cluster_y:cluster_z:cluster_sigma_x:cluster_sigma_y:cluster_sigma_z:KF_X:KF_Y:KF_Z:KF_sinPhi:KF_dzds:KF_Qoverpt");
+  }
   if(_n_iteration!=0){
     _iteration_map = findNode::getClass<TrkrClusterIterationMapv1>(topNode, "CLUSTER_ITERATION_MAP");
     if (!_iteration_map){
@@ -343,6 +348,9 @@ int PHSimpleKFProp::process_event(PHCompositeNode* topNode)
   timer.stop();
   if(Verbosity() > 2)
     { std::cout << "ghost rejection time " << timer.elapsed() << std::endl; }
+
+  _diagnostic_ntuple->Write();
+  _diagnostic_file->Close();
 
   return Fun4AllReturnCodes::EVENT_OK;
 }
@@ -631,6 +639,8 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
   GPUTPCTrackParam::GPUTPCTrackFitParam fp;
   kftrack.CalculateFitParameters(fp);
 
+  int step = 0;
+
   // first, propagate downward
   for(unsigned int l=old_layer+1;l<=54;l++)
   {
@@ -719,6 +729,11 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
         //ckeys.erase(std::remove(ckeys.begin(),ckeys.end(),next_ckey),ckeys.end());
       }
       old_phi = cphi;
+      if(_generate_diagnostics)
+      {
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,1.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)cx,(float)cy,(float)cz,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        _diagnostic_ntuple->Fill(entry);
+      }
     }
     // if layer is not occupied, search for the nearest available cluster to projected track position
     else
@@ -895,7 +910,13 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
         if(Verbosity()>0) std::cout << "added cluster" << std::endl;
         old_phi = ccphi;
       }
+      if(_generate_diagnostics)
+      {
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)ccX,(float)ccY,(float)ccZ,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        _diagnostic_ntuple->Fill(entry);
+      }
     }
+    step++;
     old_layer = l;
   }
 //  old_layer = TrkrDefs::getLayer(ckeys[0]);
@@ -959,6 +980,18 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
 //      kftrack.SetY(-cx*sin(cphi)+cy*cos(cphi));
 //      kftrack.SetZ(cz);
 //      propagated_track.push_back(next_ckey);
+      if(_generate_diagnostics)
+      {
+        double txerr = sqrt(kftrack.GetCov(0))*sin(old_phi);
+        double tyerr = sqrt(kftrack.GetCov(0))*cos(old_phi);
+        double tzerr = sqrt(kftrack.GetCov(5));
+        TrkrCluster* cc = _cluster_map->findCluster(next_ckey);
+        double cxerr = fitter->getClusterError(cc,next_ckey,ncglob,0,0);
+        double cyerr = fitter->getClusterError(cc,next_ckey,ncglob,1,1);
+        double czerr = fitter->getClusterError(cc,next_ckey,ncglob,2,2);
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,1.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)cx,(float)cy,(float)cz,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        _diagnostic_ntuple->Fill(entry);
+      }
       old_phi = cphi;
     }
     // if layer is not occupied, search for the nearest available cluster to projected track position
@@ -1129,10 +1162,16 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
 //        kftrack.SetY(-ccX*sin(ccphi)+ccY*cos(ccphi));
 //        kftrack.SetZ(cc->getZ());
         if(Verbosity()>0) std::cout << "added cluster" << std::endl;
+      if(_generate_diagnostics)
+      {
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)ccX,(float)ccY,(float)ccZ,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        _diagnostic_ntuple->Fill(entry);
+      }
         old_phi = ccphi;
       }
     }
     old_layer = l;
+    step++;
   }
   std::sort(propagated_track.begin(),propagated_track.end(),
             [](TrkrDefs::cluskey a, TrkrDefs::cluskey b)

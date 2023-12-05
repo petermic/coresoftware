@@ -18,6 +18,9 @@
 
 #include <Eigen/Core>
 
+#include <TFile.h>
+#include <TNtuple.h>
+
 // STL includes
 #include <memory>
 #include <string>
@@ -59,6 +62,7 @@ class PHSimpleKFProp : public SubsysReco
   void use_truth_clusters(bool truth)
   { _use_truth_clusters = truth; }
   void SetIteration(int iter){_n_iteration = iter;}
+  void makeDiagnostics(bool opt){_generate_diagnostics = opt;}
  
  private:
 
@@ -154,7 +158,9 @@ class PHSimpleKFProp : public SubsysReco
   std::array<double,3> _fixed_clus_err = {.1,.1,.1};
   TrkrClusterIterationMapv1* _iteration_map = nullptr;
   int _n_iteration = 0;
-
+  TFile* _diagnostic_file;
+  TNtuple* _diagnostic_ntuple;
+  bool _generate_diagnostics = false;
 };
 
 #endif
