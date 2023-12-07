@@ -185,7 +185,7 @@ int PHSimpleKFProp::process_event(PHCompositeNode* topNode)
   if(_generate_diagnostics)
   {
     _diagnostic_file = new TFile("PHSimpleKFProp_diagnostics.root","RECREATE");
-    _diagnostic_ntuple = new TNtuple("T","T","trackID:step:layer:has_cluster:proj_x:proj_y:proj_z:proj_sigma_x:proj_sigma_y:proj_sigma_z:cluster_x:cluster_y:cluster_z:cluster_sigma_x:cluster_sigma_y:cluster_sigma_z:KF_X:KF_Y:KF_Z:KF_sinPhi:KF_dzds:KF_Qoverpt");
+    _diagnostic_ntuple = new TNtuple("T","T","trackID:step:layer:has_cluster:added_cluster:proj_x:proj_y:proj_z:proj_sigma_x:proj_sigma_y:proj_sigma_z:cluster_x:cluster_y:cluster_z:cluster_sigma_x:cluster_sigma_y:cluster_sigma_z:KF_X:KF_Y:KF_Z:KF_sinPhi:KF_dzds:KF_Qoverpt");
   }
   if(_n_iteration!=0){
     _iteration_map = findNode::getClass<TrkrClusterIterationMapv1>(topNode, "CLUSTER_ITERATION_MAP");
@@ -731,7 +731,7 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       old_phi = cphi;
       if(_generate_diagnostics)
       {
-        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,1.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)cx,(float)cy,(float)cz,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,1.,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)cx,(float)cy,(float)cz,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
         _diagnostic_ntuple->Fill(entry);
       }
     }
@@ -823,7 +823,13 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       if(Verbosity()>0) std::cout << "index_out: " << index_out[0] << std::endl;
       if(Verbosity()>0) std::cout << "squared_distance_out: " << distance_out[0] << std::endl;
       if(Verbosity()>0) std::cout << "solid_angle_dist: " << atan2(sqrt(distance_out[0]),radii[l-7]) << std::endl;
-      if(n_results==0) continue;
+      if(n_results==0)
+      {
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,NAN,NAN,NAN,NAN,NAN,NAN,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        _diagnostic_ntuple->Fill(entry);
+
+        continue;
+      }
       std::vector<double> point = _ptclouds[l]->pts[index_out[0]];
       TrkrDefs::cluskey closest_ckey = (*((int64_t*)&point[3]));
       TrkrCluster* cc = _cluster_map->findCluster(closest_ckey);
@@ -883,10 +889,12 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       if(Verbosity()>0) std::cout << "cluster position: (" << ccX << ", " << ccY << ", " << ccZ << ")" << std::endl;
       if(Verbosity()>0) std::cout << "cluster position error: (" << cxerr << ", " << cyerr << ", " << czerr << ")" << std::endl;
       if(Verbosity()>0) std::cout << "cluster X: " << ccX*cos(ccphi)+ccY*sin(ccphi) << std::endl;
+      bool added = false;
       if(fabs(tx-ccX)<_max_dist*sqrt(txerr*txerr+cxerr*cxerr) &&
          fabs(ty-ccY)<_max_dist*sqrt(tyerr*tyerr+cyerr*cyerr) &&
          fabs(tz-ccZ)<_max_dist*sqrt(tzerr*tzerr+czerr*czerr))
       {
+        added = true;
         propagated_track.push_back(closest_ckey);
         layers.push_back(TrkrDefs::getLayer(closest_ckey));
 /*        TrkrCluster* cc = _cluster_map->findCluster(closest_ckey);
@@ -912,7 +920,7 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       }
       if(_generate_diagnostics)
       {
-        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)ccX,(float)ccY,(float)ccZ,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,added?(float)1.:(float)0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)ccX,(float)ccY,(float)ccZ,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
         _diagnostic_ntuple->Fill(entry);
       }
     }
@@ -989,7 +997,7 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
         double cxerr = fitter->getClusterError(cc,next_ckey,ncglob,0,0);
         double cyerr = fitter->getClusterError(cc,next_ckey,ncglob,1,1);
         double czerr = fitter->getClusterError(cc,next_ckey,ncglob,2,2);
-        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,1.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)cx,(float)cy,(float)cz,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,1.,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)cx,(float)cy,(float)cz,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
         _diagnostic_ntuple->Fill(entry);
       }
       old_phi = cphi;
@@ -1076,7 +1084,13 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       if(Verbosity()>0) std::cout << "index_out: " << index_out[0] << std::endl;
       if(Verbosity()>0) std::cout << "squared_distance_out: " << distance_out[0] << std::endl;
       if(Verbosity()>0) std::cout << "solid_angle_dist: " << atan2(sqrt(distance_out[0]),radii[l-7]) << std::endl;
-      if(n_results==0) continue;
+            if(n_results==0)
+      {
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,NAN,NAN,NAN,NAN,NAN,NAN,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        _diagnostic_ntuple->Fill(entry);
+
+        continue;
+      }
       std::vector<double> point = _ptclouds[l]->pts[index_out[0]];
       TrkrDefs::cluskey closest_ckey = (*((int64_t*)&point[3]));
       TrkrCluster* cc = _cluster_map->findCluster(closest_ckey);
@@ -1137,10 +1151,12 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
       if(Verbosity()>0) std::cout << "cluster position errors: (" << cxerr << ", " << cyerr << ", " << czerr << ")" << std::endl;
       if(Verbosity()>0) std::cout << "cluster X: " << ccX*cos(ccphi)+ccY*sin(ccphi) << std::endl;
       double alpha2 = ccphi-old_phi;
+      bool added = false;
       if(fabs(tx-ccX)<_max_dist*sqrt(txerr*txerr+cxerr*cxerr) &&
          fabs(ty-ccY)<_max_dist*sqrt(tyerr*tyerr+cyerr*cyerr) &&
          fabs(tz-ccZ)<_max_dist*sqrt(tzerr*tzerr+czerr*czerr))
       {
+        added = true;
         propagated_track.push_back(closest_ckey);
         layers.push_back(TrkrDefs::getLayer(closest_ckey));
 /*        TrkrCluster* cc = _cluster_map->findCluster(closest_ckey);
@@ -1164,7 +1180,7 @@ std::vector<TrkrDefs::cluskey> PHSimpleKFProp::PropagateTrack(TrackSeed* track, 
         if(Verbosity()>0) std::cout << "added cluster" << std::endl;
       if(_generate_diagnostics)
       {
-        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)ccX,(float)ccY,(float)ccZ,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
+        float entry[] = {(float)_track_map->find(track),(float)step,(float)l,0.,added?(float)1.:(float)0.,(float)tx,(float)ty,(float)tz,(float)txerr,(float)tyerr,(float)tzerr,(float)ccX,(float)ccY,(float)ccZ,(float)cxerr,(float)cyerr,(float)czerr,(float)kftrack.GetX(),(float)kftrack.GetY(),(float)kftrack.GetZ(),(float)kftrack.GetSinPhi(),(float)kftrack.GetDzDs(),(float)kftrack.GetQPt()};
         _diagnostic_ntuple->Fill(entry);
       }
         old_phi = ccphi;
